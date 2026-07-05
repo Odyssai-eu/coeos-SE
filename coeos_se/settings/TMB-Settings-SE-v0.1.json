@@ -1,35 +1,133 @@
 {
-  "name": "TMB Settings SE — Best of all (cloud) · v0.1",
+  "name": "TMB Settings — 100% Cloud (best-of-all) · SE",
   "regime": "cloud",
-  "updated": "2026-07-05",
-  "note": "Benchmark-composed virtual model: each skill axis routes to the model the TMB benchmarks proved best on it. OPEN-SOURCE MODELS ONLY — that's the point. Cloud regime = best-of-all, no slot constraints. Snapshot is dated and frozen; refreshed ~monthly from the scoreboards (plus ad-hoc when a hyped new model lands). Comet ids are filled where confirmed; empty ids fall back to OpenRouter (resolution option 1). Verify ids against the provider's /models via the dashboard Test button.",
+  "updated": "2026-07-03",
+  "note": "Converted to CoeOS SE format from the OdyssAI-X TMB Settings of 2026-07-03. Axes and frontier descriptions verbatim; the engine's endpoint aliases (or:/MI:) are replaced by native OpenRouter/Comet ids, each VERIFIED against the provider's live /models on 2026-07-05. MiniMax direct (MI:) has no SE provider — minimax-m3 rides OpenRouter. Comet only carries the GLM family for these picks; every other axis resolves on OpenRouter (resolution option 1). Ids are volatile — re-verify via the dashboard Test button after provider catalog changes.",
   "enabled": true,
-  "decider": { "name": "GLM-4.7 Flash", "or": "z-ai/glm-4.7-flash", "comet": "glm-4.7-flash" },
+  "decider": {
+    "name": "GLM-4.7 Flash",
+    "or": "z-ai/glm-4.7-flash",
+    "comet": "glm-4.7-flash"
+  },
   "default_axis": "code_general",
-  "axes": [
-    { "key": "creative",      "label": "Creative / long-form writing",  "model": "glm-5.2",      "description": "Long-form prose, storytelling, marketing copy, essays in any language. Not here if the deliverable is code.", "bench": "T01 480/500 (absolute record, > Opus 475)", "verified": true },
-    { "key": "legal_rgpd",    "label": "GDPR / privacy compliance",     "model": "glm-5.1",      "description": "GDPR and privacy compliance questions, DPA reviews, EU data-protection analysis.", "bench": "T02 48/50", "verified": true },
-    { "key": "legal_complex", "label": "Multi-jurisdiction legal",      "model": "qwen-3.6",     "description": "Multi-jurisdiction legal analysis, contracts, regulatory edge cases beyond GDPR.", "bench": "T05 49/50 (co-#1)", "verified": true },
-    { "key": "reasoning",     "label": "Reasoning / logic",             "model": "glm-5.2",      "description": "Logic puzzles, multi-step deduction, argument analysis — the deliverable is reasoning, not code.", "bench": "T06 46/50", "verified": true },
-    { "key": "calc",          "label": "Calculation / structured",      "model": "glm-5.2",      "description": "Structured computation, math word problems, tables, unit conversions, numeric consistency.", "bench": "T07 49/50", "verified": true },
-    { "key": "python",        "label": "Python / scripts",              "model": "glm-5.2",      "description": "Python scripts, data pipelines, notebooks. The deliverable is Python code.", "bench": "OS rebind pending re-bench (code_general champion; former binding was proprietary)", "verified": false },
-    { "key": "code_general",  "label": "General coding",                "model": "glm-5.2",      "description": "General coding when no language-specific axis fits. The safe default bucket.", "bench": "C01-C08 89.1% (cloud)", "verified": true },
-    { "key": "debug",         "label": "Debugging",                     "model": "glm-5.2",      "description": "Find and fix a bug in provided code, stack-trace analysis, regression hunting.", "bench": "C02 49/50 (panel record)", "verified": true },
-    { "key": "react",         "label": "React / frontend",              "model": "glm-5.2",      "description": "React or frontend TS/JS work: components, hooks, state, CSS.", "bench": "C04 49/50", "verified": true },
-    { "key": "swift",         "label": "Swift",                         "model": "",             "description": "Swift / iOS / macOS code.", "bench": "GAP — no strong model benched yet (unbound: excluded from routing)", "verified": false },
-    { "key": "refactoring",   "label": "Refactoring",                   "model": "glm-5.2",      "description": "Restructure existing code without changing behaviour; extract, rename, simplify.", "bench": "C06 49/50", "verified": true },
-    { "key": "plan_decompo",  "label": "Planning — decomposition",      "model": "minimax-m3",   "description": "Breaking a project or feature into tasks, milestones, work units.", "bench": "P01 39/50 (cloud)", "verified": true },
-    { "key": "plan_spec",     "label": "Planning — spec / handoff",     "model": "minimax-m3",   "description": "Writing specs, handoff documents, RFCs for someone else to implement.", "bench": "P04 47/50", "verified": true },
-    { "key": "plan_judgment", "label": "Planning — judgment / traps",   "model": "minimax-m3",   "description": "Reviewing plans for risks, traps, missing pieces; architectural judgment calls.", "bench": "P02 37 / P03 47", "verified": true },
-    { "key": "fast_tools",    "label": "Tools & fast coding",           "model": "glm-4.7-flash", "description": "Quick tool-calling turns, short factual lookups, low-latency agent steps.", "bench": "latency axis — no dedicated quality score", "verified": false }
-  ],
   "models": {
-    "glm-5.2":       { "name": "GLM-5.2",        "or": "z-ai/glm-5.2",               "comet": "glm-5.2" },
-    "glm-5.1":       { "name": "GLM-5.1",        "or": "z-ai/glm-5.1",               "comet": "glm-5.1" },
-    "qwen-3.6":      { "name": "Qwen 3.6",       "or": "qwen/qwen-3.6",              "comet": "", "note": "OR id best-effort — verify via the dashboard Test button" },
-    "minimax-m3":    { "name": "MiniMax M3",     "or": "minimax/minimax-m3",          "comet": "" },
-    "glm-4.7-flash": { "name": "GLM-4.7 Flash",  "or": "z-ai/glm-4.7-flash",          "comet": "glm-4.7-flash", "fast": true },
-    "glm-5-turbo":   { "name": "GLM-5 Turbo",    "or": "z-ai/glm-5-turbo",            "comet": "glm-5-turbo",   "fast": true },
-    "minimax-m2.7":  { "name": "MiniMax M2.7",   "or": "minimax/minimax-m2.7",        "comet": "", "fast": true }
-  }
+    "glm-5.2": {
+      "name": "GLM 5.2 (cloud)",
+      "or": "z-ai/glm-5.2",
+      "comet": "glm-5.2"
+    },
+    "minimax-m3": {
+      "name": "MiniMax-M3 (cloud)",
+      "or": "minimax/minimax-m3",
+      "comet": ""
+    },
+    "kimi-k2.7": {
+      "name": "Kimi K2.7 (cloud)",
+      "or": "moonshotai/kimi-k2.7-code",
+      "comet": ""
+    },
+    "hy3": {
+      "name": "Hy3 (cloud)",
+      "or": "tencent/hy3-preview",
+      "comet": ""
+    },
+    "deepseek-flash": {
+      "name": "DeepSeek V4 Flash (cloud)",
+      "or": "deepseek/deepseek-v4-flash",
+      "comet": "",
+      "fast": true
+    }
+  },
+  "axes": [
+    {
+      "key": "creative",
+      "label": "Créatif / rédaction longue",
+      "model": "glm-5.2",
+      "description": "Rédaction longue en langage naturel : récit, article, marketing, storytelling, réécriture stylistique, contenu créatif. Pas ici si le livrable est du code (→ axes code) ou une spec/handoff structuré (→ plan_spec)."
+    },
+    {
+      "key": "legal_rgpd",
+      "label": "RGPD / conformité",
+      "model": "minimax-m3",
+      "description": "Conformité RGPD / protection des données / vie privée en droit européen : analyse de traitements, DPA, mentions légales, registre, bases légales. Pas ici si la question juridique dépasse le RGPD ou couvre plusieurs juridictions (→ legal_complex)."
+    },
+    {
+      "key": "legal_complex",
+      "label": "Conformité multi-jur.",
+      "model": "minimax-m3",
+      "description": "Analyse juridique complexe ou multi-juridictionnelle : contrats, conformité hors-RGPD, comparaison de droits, raisonnement légal nuancé. Pas ici si c'est strictement RGPD/données personnelles (→ legal_rgpd)."
+    },
+    {
+      "key": "reasoning",
+      "label": "Raisonnement / logique",
+      "model": "minimax-m3",
+      "description": "Raisonnement pur, logique, déduction, énigmes, analyse argumentée non-juridique et non-calculatoire. Pas ici si la réponse repose sur du calcul numérique/structuré (→ calc) ou si le livrable est du code (→ axes code)."
+    },
+    {
+      "key": "calc",
+      "label": "Calcul / structuré",
+      "model": "glm-5.2",
+      "description": "Calcul numérique, mathématiques, manipulation de données structurées, tableurs, conversions, estimations chiffrées. Pas ici si le raisonnement est qualitatif (→ reasoning) ou si on écrit un script qui calcule (→ python)."
+    },
+    {
+      "key": "python",
+      "label": "Python / scripts",
+      "model": "kimi-k2.7",
+      "description": "Tâche dont le livrable est du code Python : scripts, data, automatisation, ML, backend Python. Choisir cet axe dès que le langage cible est Python. Pas ici si c'est un autre langage (→ code_general / swift / react)."
+    },
+    {
+      "key": "code_general",
+      "label": "Code général",
+      "model": "glm-5.2",
+      "description": "Code applicatif dans un langage SANS axe dédié (Go, Rust, Java, C/C++, JS/TS backend, shell…). Seau par défaut : ne PAS choisir si la tâche est en Swift (→ swift), Python (→ python), ou front React (→ react). À n'utiliser QUE si aucun axe de langage spécifique ne s'applique."
+    },
+    {
+      "key": "debug",
+      "label": "Debug",
+      "model": "glm-5.2",
+      "description": "Diagnostic et correction d'un bug dans du code existant : stack trace, comportement inattendu, test qui casse, régression. Choisir cet axe quand l'intention est RÉPARER/COMPRENDRE un défaut, quel que soit le langage. Pas ici si on écrit du code neuf (→ axe du langage) ou si on restructure du code sain (→ refactoring)."
+    },
+    {
+      "key": "react",
+      "label": "React / front",
+      "model": "minimax-m3",
+      "description": "Front-end web : React, JSX/TSX, composants UI, hooks, état client, Next.js, styling. Pas ici si c'est du backend JS/TS (→ code_general) ou du natif Apple (→ swift)."
+    },
+    {
+      "key": "swift",
+      "label": "Swift",
+      "model": "minimax-m3",
+      "description": "Tâche dont le livrable est du code Swift : SwiftUI, AppKit/UIKit, app macOS/iOS native, Swift Package, Xcode, async/await Swift, ArgumentParser, CLI Swift. Choisir CET axe dès que le langage cible est Swift, MÊME si la tâche ressemble par ailleurs à du code général ou à un CLI. Le langage prime sur la forme de la tâche."
+    },
+    {
+      "key": "refactoring",
+      "label": "Refactoring",
+      "model": "minimax-m3",
+      "description": "Restructuration de code SAIN sans changer son comportement : extraire, renommer, dédupliquer, moderniser, améliorer la lisibilité/l'archi. Pas ici si on corrige un bug (→ debug) ou si on écrit une fonctionnalité neuve (→ axe du langage)."
+    },
+    {
+      "key": "plan_decompo",
+      "label": "Planning — décomposition",
+      "model": "kimi-k2.7",
+      "description": "Décomposition d'un objectif en sous-tâches/étapes : découper un projet, créer un backlog, séquencer le travail. Pas ici si on rédige une spec détaillée pour un exécutant (→ plan_spec) ou si on évalue les risques/pièges d'un plan (→ plan_judgment)."
+    },
+    {
+      "key": "plan_spec",
+      "label": "Planning — handoff / spec",
+      "model": "minimax-m3",
+      "description": "Rédaction d'une spécification, d'un handoff, d'un cahier des charges détaillé destiné à un exécutant (humain ou agent) : critères de done, contrat d'interface, doc d'implémentation. Pas ici si on découpe juste en étapes (→ plan_decompo) ou si on juge un plan (→ plan_judgment)."
+    },
+    {
+      "key": "plan_judgment",
+      "label": "Planning — jugement / pièges",
+      "model": "hy3",
+      "description": "Jugement critique d'un plan ou d'une décision : repérer les pièges, arbitrer entre options, évaluer les risques, faire un red-team. Pas ici si on décompose (→ plan_decompo) ou si on rédige la spec (→ plan_spec)."
+    },
+    {
+      "key": "fast_tools",
+      "label": "Tools & fast coding",
+      "model": "deepseek-flash",
+      "description": "Appels d'outils rapides, complétions courtes à faible latence, edits triviaux, tool-calling en boucle d'agent où la VITESSE prime sur la profondeur. Choisir cet axe quand la tâche est petite/mécanique et doit être servie vite, pas quand elle demande une vraie réflexion (→ axe de compétence correspondant)."
+    }
+  ]
 }
