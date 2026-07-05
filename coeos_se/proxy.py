@@ -120,13 +120,22 @@ async def proxy_chat(cfg: dict, pid: str, upstream: str, body: dict,
 
 
 async def unary_upstream_text(cfg: dict, pid: str, upstream: str,
-                              messages: list[dict], max_tokens: int = 160) -> str:
+                              messages: list[dict], max_tokens: int = 600) -> str:
     """Small non-streaming call used by the decider. Returns the assistant
-    text ("" on any failure — callers fall back to the default axis)."""
+    text ("" on any failure — callers fall back to the default axis).
+
+    Reasoning-first upstreams are the trap here (verified live): some ignore
+    `thinking: false`, burn the whole budget inside the `reasoning` field and
+    return an EMPTY content — the AXIS line never arrives. Three guards:
+    OpenRouter's unified `reasoning: {enabled: false}` hint (ignored by
+    upstreams that don't know it), a budget that survives a thinking block
+    anyway, and parsing `reasoning` too (content last, so a real final answer
+    always wins in the last-match parsing rules)."""
     meta = PROVIDERS[pid]
     url = f"{meta['api_base'].rstrip('/')}/chat/completions"
     body = {"model": upstream, "messages": messages, "max_tokens": max_tokens,
-            "stream": False, "thinking": False}
+            "stream": False, "thinking": False,
+            "reasoning": {"enabled": False}}
     if "minimax" in str(upstream).lower():
         body["thinking"] = {"type": "disabled"}
     try:
@@ -137,6 +146,8 @@ async def unary_upstream_text(cfg: dict, pid: str, upstream: str,
             payload = r.json()
             choices = payload.get("choices") or []
             msg = (choices[0].get("message") or {}) if choices else {}
-            return msg.get("content") or ""
+            reasoning = msg.get("reasoning") or msg.get("reasoning_content") or ""
+            content = msg.get("content") or ""
+            return f"{reasoning}\n{content}".strip()
     except Exception:
         return ""

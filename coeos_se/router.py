@@ -197,7 +197,7 @@ async def llm_classify(cfg: dict, c: dict, axes: list[dict], messages: list[dict
         f"line exactly: `AXIS: <key>` where <key> is one of: {', '.join(keys)}")
     try:
         buf = await proxy.unary_upstream_text(
-            cfg, pid, upstream, [{"role": "user", "content": prompt}], max_tokens=160)
+            cfg, pid, upstream, [{"role": "user", "content": prompt}], max_tokens=600)
     except Exception as e:
         sys.stderr.write(f"[coeos-se] decider error: {e}\n")
         return None
