@@ -33,7 +33,7 @@ def _upstream_headers(cfg: dict, pid: str) -> dict:
     return headers
 
 
-def _prepare_body(body: dict, upstream: str) -> dict:
+def _prepare_body(body: dict, upstream: str, pid: str | None = None) -> dict:
     """Copy the client body, retarget `model`, normalise thinking flags.
     Everything else passes through verbatim."""
     fwd = dict(body)
@@ -61,6 +61,13 @@ def _prepare_body(body: dict, upstream: str) -> dict:
             fwd["thinking"] = {"type": "enabled" if think_on else "disabled"}
         else:
             fwd["thinking"] = think_on
+        # OpenRouter ignores `thinking` and uses its unified `reasoning` param
+        # — verified live on z-ai/*: {"enabled": false} is the only variant
+        # that both suppresses reasoning AND frees the token budget (exclude
+        # hides it but still burns max_tokens). Translate the client's intent;
+        # an explicit client `reasoning` field wins.
+        if pid == "openrouter":
+            fwd.setdefault("reasoning", {"enabled": think_on})
 
     # OpenAI spec: streaming responses omit `usage` unless the client opts in.
     # Always opt in so clients can render token counts (api.py:5085-5098).
@@ -83,7 +90,7 @@ async def proxy_chat(cfg: dict, pid: str, upstream: str, body: dict,
     meta = PROVIDERS[pid]
     url = f"{meta['api_base'].rstrip('/')}/chat/completions"
     headers = _upstream_headers(cfg, pid)
-    fwd = _prepare_body(body, upstream)
+    fwd = _prepare_body(body, upstream, pid)
     extra = decision_headers or {}
 
     if fwd.get("stream"):
@@ -126,7 +133,7 @@ async def unary_upstream_json(cfg: dict, pid: str, upstream: str,
     rather than a passthrough Response."""
     meta = PROVIDERS[pid]
     url = f"{meta['api_base'].rstrip('/')}/chat/completions"
-    fwd = _prepare_body(body, upstream)
+    fwd = _prepare_body(body, upstream, pid)
     fwd["stream"] = False
     async with httpx.AsyncClient(timeout=300.0) as client:
         try:
@@ -145,7 +152,7 @@ async def stream_upstream_chunks(cfg: dict, pid: str, upstream: str, body: dict)
     Yields {"error": {...}} once and stops on upstream/transport errors."""
     meta = PROVIDERS[pid]
     url = f"{meta['api_base'].rstrip('/')}/chat/completions"
-    fwd = _prepare_body(body, upstream)
+    fwd = _prepare_body(body, upstream, pid)
     fwd["stream"] = True
     opts = fwd.get("stream_options")
     opts = dict(opts) if isinstance(opts, dict) else {}

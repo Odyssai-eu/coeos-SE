@@ -45,3 +45,17 @@ def test_original_body_not_mutated():
     body = {"stream": True, "enable_thinking": True}
     _prepare_body(body, "m")
     assert body == {"stream": True, "enable_thinking": True}
+
+
+def test_openrouter_gets_unified_reasoning_param():
+    # Verified live: OR ignores `thinking`; reasoning:{enabled} is the switch.
+    fwd = _prepare_body({"thinking": False}, "z-ai/glm-5.2", pid="openrouter")
+    assert fwd["reasoning"] == {"enabled": False}
+    fwd_on = _prepare_body({"thinking": True}, "z-ai/glm-5.2", pid="openrouter")
+    assert fwd_on["reasoning"] == {"enabled": True}
+    # explicit client reasoning wins; comet untouched; no intent → no param
+    fwd_cl = _prepare_body({"thinking": False, "reasoning": {"effort": "low"}},
+                           "z-ai/glm-5.2", pid="openrouter")
+    assert fwd_cl["reasoning"] == {"effort": "low"}
+    assert "reasoning" not in _prepare_body({"thinking": False}, "glm-5.2", pid="comet")
+    assert "reasoning" not in _prepare_body({}, "z-ai/glm-5.2", pid="openrouter")
