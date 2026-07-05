@@ -52,6 +52,7 @@ class AnthropicMessagesRequest(BaseModel):
     top_p: Optional[float] = None
     stop_sequences: Optional[list[str]] = None
     metadata: Optional[dict] = None
+    thinking: Optional[Any] = None        # Anthropic extended-thinking config
 
 
 def resolve_tier(model: Optional[str]) -> tuple[str, Optional[str]]:
@@ -196,6 +197,13 @@ def to_openai_body(req: AnthropicMessagesRequest, stream: bool) -> dict:
         body["top_p"] = req.top_p
     if req.stop_sequences:
         body["stop"] = req.stop_sequences
+    # Thinking policy is OURS on this surface (we build the OpenAI body; an
+    # Anthropic client can't send the OpenAI-side flag). Default OFF —
+    # upstreams that think by default otherwise burn small max_tokens budgets
+    # inside reasoning and return empty content (verified live). Anthropic
+    # extended-thinking {"type": "enabled"} turns it on.
+    think = req.thinking if isinstance(req.thinking, dict) else {}
+    body["thinking"] = think.get("type") == "enabled"
     return body
 
 

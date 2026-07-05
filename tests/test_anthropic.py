@@ -87,6 +87,14 @@ def test_body_carries_sampling_params():
     assert body["stream"] is True and body["max_tokens"] == 64
 
 
+def test_thinking_defaults_off_and_maps_enabled():
+    assert A.to_openai_body(_req(), stream=False)["thinking"] is False
+    on = _req(thinking={"type": "enabled", "budget_tokens": 2048})
+    assert A.to_openai_body(on, stream=False)["thinking"] is True
+    off = _req(thinking={"type": "disabled"})
+    assert A.to_openai_body(off, stream=False)["thinking"] is False
+
+
 # ── response translation ─────────────────────────────────────────────────────
 
 def test_nonstream_response_maps():
