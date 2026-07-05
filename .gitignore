@@ -12,3 +12,6 @@ build/
 .venv/
 .pytest_cache/
 .DS_Store
+
+# graphify local knowledge graph (per-repo, ~14 MB) — lives in the stack graph
+graphify-out/
