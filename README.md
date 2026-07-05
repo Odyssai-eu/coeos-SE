@@ -99,11 +99,24 @@ month — sooner when a notable new model lands. Watch the repo for updates.
 
 Adding an axis = adding a JSON entry. Five axes or fifty, same engine.
 
+## Works with your tools — both wire protocols
+
+CoeOS SE speaks **OpenAI** (`/v1/chat/completions`) and **Anthropic**
+(`/v1/messages`, streaming included). Point Claude Code at it with
+`ANTHROPIC_BASE_URL` — claude tier names route automatically (opus/sonnet →
+`coeos`, haiku → the fast axis). Codex, Cline, Continue, OpenCode, Aider and
+any OpenAI SDK use `<base>/v1` + model `coeos`.
+
+Open **`/endpoints`** on a running server for copy/paste setup snippets per
+client.
+
 ## API surface
 
 | Endpoint | Purpose |
 |---|---|
 | `POST /v1/chat/completions` | OpenAI surface (`coeos`, logical, or `or:`/`comet:` ids) |
+| `POST /v1/messages` (+ `/count_tokens`) | Anthropic surface (Claude Code, Anthropic SDKs) |
+| `GET /endpoints` | copy/paste client setup snippets |
 | `GET /v1/models` | `CoeOS` + the registry's logical models |
 | `GET/PUT /admin/coeos` | read / import the TMB Settings |
 | `GET /admin/coeos/decisions` | routing counters |

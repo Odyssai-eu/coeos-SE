@@ -119,6 +119,67 @@ async def proxy_chat(cfg: dict, pid: str, upstream: str, body: dict,
         return JSONResponse(payload, status_code=r.status_code, headers=extra)
 
 
+async def unary_upstream_json(cfg: dict, pid: str, upstream: str,
+                              body: dict) -> tuple[int, dict]:
+    """Non-streaming upstream call returning (status, payload). Used by the
+    Anthropic surface, which needs the parsed OpenAI response to translate it
+    rather than a passthrough Response."""
+    meta = PROVIDERS[pid]
+    url = f"{meta['api_base'].rstrip('/')}/chat/completions"
+    fwd = _prepare_body(body, upstream)
+    fwd["stream"] = False
+    async with httpx.AsyncClient(timeout=300.0) as client:
+        try:
+            r = await client.post(url, headers=_upstream_headers(cfg, pid), json=fwd)
+        except Exception as e:
+            raise HTTPException(502, f"upstream {pid} unreachable: {e}")
+        try:
+            return r.status_code, r.json()
+        except Exception:
+            raise HTTPException(502, f"upstream {pid} returned non-JSON (status {r.status_code})")
+
+
+async def stream_upstream_chunks(cfg: dict, pid: str, upstream: str, body: dict):
+    """Streaming upstream call yielding PARSED OpenAI chunk dicts (skipping
+    keep-alive comments), for surfaces that transcode rather than relay.
+    Yields {"error": {...}} once and stops on upstream/transport errors."""
+    meta = PROVIDERS[pid]
+    url = f"{meta['api_base'].rstrip('/')}/chat/completions"
+    fwd = _prepare_body(body, upstream)
+    fwd["stream"] = True
+    opts = fwd.get("stream_options")
+    opts = dict(opts) if isinstance(opts, dict) else {}
+    opts.setdefault("include_usage", True)
+    fwd["stream_options"] = opts
+    timeout = httpx.Timeout(60.0, read=None)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            async with client.stream("POST", url, headers=_upstream_headers(cfg, pid),
+                                     json=fwd) as r:
+                if r.status_code >= 400:
+                    txt = (await r.aread()).decode("utf-8", "ignore")
+                    yield {"error": {"message": txt[:300], "code": r.status_code,
+                                     "provider": pid}}
+                    return
+                buf = ""
+                async for text in r.aiter_text():
+                    buf += text
+                    while "\n" in buf:
+                        line, buf = buf.split("\n", 1)
+                        line = line.strip()
+                        if not line.startswith("data:"):
+                            continue  # SSE comments / event names / blanks
+                        payload = line[5:].strip()
+                        if payload == "[DONE]":
+                            return
+                        try:
+                            yield json.loads(payload)
+                        except Exception:
+                            continue
+        except Exception as e:
+            yield {"error": {"message": str(e)[:300], "provider": pid}}
+
+
 async def unary_upstream_text(cfg: dict, pid: str, upstream: str,
                               messages: list[dict], max_tokens: int = 600) -> str:
     """Small non-streaming call used by the decider. Returns the assistant

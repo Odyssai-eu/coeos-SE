@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CoeOS SE — Endpoints</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
+    --muted: #8b949e; --accent: #58a6ff; --ok: #3fb950;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; }
+  header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  h1 { font-size: 20px; margin: 0; }
+  h1 .se { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  h2 { font-size: 15px; margin: 26px 0 4px; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 0 0 8px; }
+  .snippet { position: relative; background: var(--panel);
+             border: 1px solid var(--border); border-radius: 8px; }
+  pre { margin: 0; padding: 13px 15px; overflow-x: auto; font-family: var(--mono);
+        font-size: 12.5px; line-height: 1.55; white-space: pre; }
+  .copy { position: absolute; top: 8px; right: 8px; background: #21262d;
+          color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+          padding: 3px 11px; cursor: pointer; font-size: 12px; }
+  .copy:hover { border-color: var(--accent); }
+  .copy.done { color: var(--ok); border-color: var(--ok); }
+  a { color: var(--accent); text-decoration: none; }
+  .back { font-size: 13px; }
+  .base { font-family: var(--mono); color: var(--ok); }
+  .badge { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 11.5px;
+           border: 1px solid var(--border); color: var(--muted); margin-left: 8px;
+           vertical-align: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>CoeOS <span class="se">SE</span> — Endpoints</h1>
+    <a class="back" href="/dashboard">← dashboard</a>
+  </header>
+  <div class="sub">
+    Copy/paste connection settings. This server speaks BOTH wire protocols:
+    <b>OpenAI</b> (<span class="base" id="b1"></span>/v1/chat/completions) and
+    <b>Anthropic</b> (<span class="base" id="b2"></span>/v1/messages).
+    Use <span class="base">coeos</span> as the model everywhere — the router
+    picks the proven-best model per request. If the server has no
+    <span class="base">COEOS_API_KEY</span> set, any placeholder key works.
+  </div>
+  <div id="sections"></div>
+</div>
+
+<script>
+const BASE = window.location.origin;
+document.getElementById('b1').textContent = BASE;
+document.getElementById('b2').textContent = BASE;
+
+const SECTIONS = [
+{
+  title: "Claude Code",
+  badge: "anthropic wire",
+  hint: "Anthropic surface — claude tier names route automatically (opus/sonnet → coeos, haiku → coeos pinned to the fast axis). Run this in a shell, or export the env vars in your profile.",
+  code:
+`ANTHROPIC_BASE_URL="${BASE}" \\
+ANTHROPIC_AUTH_TOKEN="coeos" \\
+ANTHROPIC_API_KEY="" \\
+claude`
+},
+{
+  title: "Codex CLI",
+  badge: "openai wire",
+  hint: "~/.codex/config.toml — then run `codex`. Set COEOS_API_KEY in your env (any value if the server has no key).",
+  code:
+`model = "coeos"
+model_provider = "coeos-se"
+
+[model_providers.coeos-se]
+name = "CoeOS SE"
+base_url = "${BASE}/v1"
+env_key = "COEOS_API_KEY"
+wire_api = "chat"`
+},
+{
+  title: "VS Code — Cline",
+  badge: "openai wire",
+  hint: "Cline settings → API Provider: \"OpenAI Compatible\".",
+  code:
+`Base URL : ${BASE}/v1
+API Key  : coeos            (any value if the server has no key)
+Model ID : coeos`
+},
+{
+  title: "VS Code / JetBrains — Continue",
+  badge: "openai wire",
+  hint: "config.yaml (or config.json) of Continue.",
+  code:
+`models:
+  - name: CoeOS SE
+    provider: openai
+    model: coeos
+    apiBase: ${BASE}/v1
+    apiKey: coeos`
+},
+{
+  title: "OpenCode",
+  badge: "openai wire",
+  hint: "opencode.json at the project root (or ~/.config/opencode/).",
+  code:
+`{
+  "provider": {
+    "coeos-se": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "CoeOS SE",
+      "options": { "baseURL": "${BASE}/v1", "apiKey": "coeos" },
+      "models": { "coeos": { "name": "CoeOS (router)" } }
+    }
+  },
+  "model": "coeos-se/coeos"
+}`
+},
+{
+  title: "Aider",
+  badge: "openai wire",
+  hint: "OpenAI-compatible mode; the openai/ prefix tells Aider to use the generic OpenAI client.",
+  code:
+`export OPENAI_API_BASE="${BASE}/v1"
+export OPENAI_API_KEY="coeos"
+aider --model openai/coeos`
+},
+{
+  title: "Hermes / any OpenAI-env agent",
+  badge: "openai wire",
+  hint: "Agents that read the standard OpenAI env vars.",
+  code:
+`export OPENAI_BASE_URL="${BASE}/v1"
+export OPENAI_API_KEY="coeos"
+export OPENAI_MODEL="coeos"`
+},
+{
+  title: "OpenAI SDK — Python",
+  badge: "openai wire",
+  hint: "Everything passes through verbatim (reasoning_effort, thinking, tools, streaming).",
+  code:
+`from openai import OpenAI
+
+client = OpenAI(base_url="${BASE}/v1", api_key="coeos")
+r = client.chat.completions.create(
+    model="coeos",
+    messages=[{"role": "user", "content": "Fix this stack trace: ..."}],
+)
+print(r.choices[0].message.content)`
+},
+{
+  title: "OpenAI SDK — JavaScript",
+  badge: "openai wire",
+  hint: "",
+  code:
+`import OpenAI from "openai";
+
+const client = new OpenAI({ baseURL: "${BASE}/v1", apiKey: "coeos" });
+const r = await client.chat.completions.create({
+  model: "coeos",
+  messages: [{ role: "user", content: "Write a SwiftUI counter view" }],
+});
+console.log(r.choices[0].message.content);`
+},
+{
+  title: "Anthropic SDK — Python",
+  badge: "anthropic wire",
+  hint: "The /v1/messages surface, translated to the routed model behind the scenes.",
+  code:
+`import anthropic
+
+client = anthropic.Anthropic(base_url="${BASE}", api_key="coeos")
+r = client.messages.create(
+    model="coeos",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Decompose this feature into tasks: ..."}],
+)
+print(r.content[0].text)`
+},
+{
+  title: "curl — OpenAI shape",
+  badge: "openai wire",
+  hint: "Response headers x-coeos-axis / x-coeos-model / x-coeos-provider show the routing decision (add -i to see them).",
+  code:
+`curl -s ${BASE}/v1/chat/completions \\
+  -H "content-type: application/json" \\
+  -d '{"model":"coeos","messages":[{"role":"user","content":"Say OK"}]}'`
+},
+{
+  title: "curl — Anthropic shape",
+  badge: "anthropic wire",
+  hint: "",
+  code:
+`curl -s ${BASE}/v1/messages \\
+  -H "content-type: application/json" \\
+  -d '{"model":"coeos","max_tokens":64,"messages":[{"role":"user","content":"Say OK"}]}'`
+},
+{
+  title: "Force an axis (any client)",
+  badge: "header",
+  hint: "Agents that know their phase can skip the decider entirely with an explicit axis header.",
+  code:
+`curl -s ${BASE}/v1/chat/completions \\
+  -H "content-type: application/json" \\
+  -H "x-coeos-axis: plan_judgment" \\
+  -d '{"model":"coeos","messages":[{"role":"user","content":"Red-team this plan: ..."}]}'`
+}
+];
+
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+document.getElementById('sections').innerHTML = SECTIONS.map((s, i) => `
+  <h2>${esc(s.title)}<span class="badge">${esc(s.badge)}</span></h2>
+  ${s.hint ? `<p class="hint">${esc(s.hint)}</p>` : ''}
+  <div class="snippet">
+    <button class="copy" onclick="copySnip(${i}, this)">Copy</button>
+    <pre id="snip-${i}">${esc(s.code)}</pre>
+  </div>`).join('');
+
+function copySnip(i, btn) {
+  navigator.clipboard.writeText(SECTIONS[i].code).then(() => {
+    btn.textContent = 'Copied'; btn.classList.add('done');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1600);
+  });
+}
+</script>
+</body>
+</html>

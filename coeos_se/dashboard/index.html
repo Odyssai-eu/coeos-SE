@@ -62,9 +62,12 @@
     <h1>CoeOS <span class="se">SE</span></h1>
     <span class="sub" id="health">…</span>
   </header>
-  <div class="sub">One OpenAI-compatible endpoint. Every request routed to the model
-    proven best on that skill — per the TMB benchmarks.
-    Call it with <span class="pill">model: "coeos"</span></div>
+  <div class="sub" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+    <span>One endpoint, two wire protocols (OpenAI + Anthropic). Every request routed
+    to the model proven best on that skill — per the TMB benchmarks.
+    Call it with <span class="pill">model: "coeos"</span></span>
+    <a href="/endpoints"><button>Endpoints — client setup</button></a>
+  </div>
 
   <h2>Providers — paste a key, that's the whole setup</h2>
   <div class="grid2" id="providers"></div>
@@ -129,7 +132,11 @@
   <h2>Decisions</h2>
   <div class="panel">
     <table id="decisions"><tr><td class="muted">No routed requests yet.</td></tr></table>
-    <div class="row"><button onclick="loadDecisions()">Refresh</button></div>
+    <div class="row">
+      <button onclick="loadDecisions()">Refresh</button>
+      <button onclick="clearDecisions()">Clear</button>
+      <span class="msg" id="decisionsMsg"></span>
+    </div>
   </div>
 
   <div class="footer">
@@ -316,6 +323,11 @@ function importSettings() {
   f.click();
 }
 
+async function clearDecisions() {
+  const r = await api('/admin/coeos/decisions', {method: 'DELETE'});
+  flash('decisionsMsg', r.ok, r.ok ? 'cleared' : 'error');
+  loadDecisions();
+}
 async function loadDecisions() {
   const d = await (await api('/admin/coeos/decisions')).json();
   const rows = d.decisions || [];

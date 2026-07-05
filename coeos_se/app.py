@@ -21,14 +21,16 @@ import json
 import os
 import sys
 import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import (FileResponse, JSONResponse, RedirectResponse,
+                               Response, StreamingResponse)
 from pydantic import BaseModel
 
-from . import __version__, proxy, router
+from . import __version__, anthropic_api, proxy, router
 from .config import config_txn, load_config
 from .providers import (PREFIX_TO_PROVIDER, PROVIDERS, list_upstream_models,
                         provider_key, provider_priority, ready_providers,
@@ -97,6 +99,42 @@ async def _auth_middleware(request: Request, call_next):
 
 # ── OpenAI surface ───────────────────────────────────────────────────────────
 
+async def resolve_target(cfg: dict, model: str, headers, body: dict) -> tuple[str, str, dict]:
+    """Shared model-id resolution for both wire surfaces (OpenAI + Anthropic):
+    'coeos' → router decision; 'or:'/'comet:' → explicit provider; a registry
+    logical → resolution option 1. Returns (pid, upstream, decision_headers)."""
+    # 1. The virtual router id.
+    if model.lower() == COEOS_MODEL_ID:
+        d = await coeos_resolve(cfg, headers, body)
+        return d["provider"], d["upstream"], {
+            "x-coeos-axis": d["axis"], "x-coeos-model": d["logical"],
+            "x-coeos-provider": d["provider"]}
+
+    # 2. Explicit provider prefix: "or:z-ai/glm-5.2", "comet:glm-5.2".
+    if ":" in model:
+        prefix, upstream = model.split(":", 1)
+        pid = PREFIX_TO_PROVIDER.get(prefix.lower())
+        if pid and upstream.strip():
+            if provider_key(cfg, pid) is None:
+                raise HTTPException(status_code=503, detail={
+                    "error": "provider_key_missing",
+                    "message": f"{PROVIDERS[pid]['label']} key not set. Add it in "
+                               f"the dashboard or via {PROVIDERS[pid]['api_key_env']}."})
+            return pid, upstream.strip(), {"x-coeos-provider": pid}
+
+    # 3. A logical model name from the registry (resolution option 1).
+    resolved = resolve_logical(cfg, model)
+    if resolved is not None:
+        pid, upstream = resolved
+        return pid, upstream, {"x-coeos-model": model, "x-coeos-provider": pid}
+
+    raise HTTPException(status_code=404, detail={
+        "error": "unknown_model",
+        "message": f"unknown model {model!r}. Use 'coeos', a logical model from "
+                   "the registry (GET /v1/models), or an explicit "
+                   "'or:<id>' / 'comet:<id>'."})
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     # Raw dict on purpose: a strict schema would strip fields like
@@ -111,41 +149,53 @@ async def chat_completions(request: Request):
     model = str(body.get("model") or "").strip()
     if not model:
         raise HTTPException(400, "missing 'model'")
+    pid, upstream, decision = await resolve_target(cfg, model, request.headers, body)
+    return await proxy.proxy_chat(cfg, pid, upstream, body, decision_headers=decision)
 
-    # 1. The virtual router id.
-    if model.lower() == COEOS_MODEL_ID:
-        d = await coeos_resolve(cfg, request.headers, body)
-        headers = {"x-coeos-axis": d["axis"], "x-coeos-model": d["logical"],
-                   "x-coeos-provider": d["provider"]}
-        return await proxy.proxy_chat(cfg, d["provider"], d["upstream"], body,
-                                      decision_headers=headers)
 
-    # 2. Explicit provider prefix: "or:z-ai/glm-5.2", "comet:glm-5.2".
-    if ":" in model:
-        prefix, upstream = model.split(":", 1)
-        pid = PREFIX_TO_PROVIDER.get(prefix.lower())
-        if pid and upstream.strip():
-            if provider_key(cfg, pid) is None:
-                raise HTTPException(status_code=503, detail={
-                    "error": "provider_key_missing",
-                    "message": f"{PROVIDERS[pid]['label']} key not set. Add it in "
-                               f"the dashboard or via {PROVIDERS[pid]['api_key_env']}."})
-            return await proxy.proxy_chat(cfg, pid, upstream.strip(), body,
-                                          decision_headers={"x-coeos-provider": pid})
+# ── Anthropic surface (/v1/messages) ─────────────────────────────────────────
+# Claude Code & Anthropic SDK clients point ANTHROPIC_BASE_URL here. Claude
+# tier names map to the router (haiku pinned to the fast axis); the request is
+# translated to the OpenAI shape, routed exactly like /v1/chat/completions,
+# and the upstream reply is translated (or stream-transcoded) back.
 
-    # 3. A logical model name from the registry (resolution option 1).
-    resolved = resolve_logical(cfg, model)
-    if resolved is not None:
-        pid, upstream = resolved
-        return await proxy.proxy_chat(cfg, pid, upstream, body,
-                                      decision_headers={"x-coeos-model": model,
-                                                        "x-coeos-provider": pid})
+@app.post("/v1/messages")
+async def anthropic_messages(req: anthropic_api.AnthropicMessagesRequest,
+                             request: Request):
+    cfg = load_config()
+    model, forced_axis = anthropic_api.resolve_tier(req.model)
+    headers = {k.lower(): v for k, v in request.headers.items()}
+    if forced_axis:
+        headers["x-coeos-axis"] = forced_axis
+    body = anthropic_api.to_openai_body(req, stream=bool(req.stream))
+    pid, upstream, decision = await resolve_target(cfg, model, headers, body)
+    msg_id = "msg_" + uuid.uuid4().hex[:24]
+    label = decision.get("x-coeos-model") or upstream
 
-    raise HTTPException(status_code=404, detail={
-        "error": "unknown_model",
-        "message": f"unknown model {model!r}. Use 'coeos', a logical model from "
-                   "the registry (GET /v1/models), or an explicit "
-                   "'or:<id>' / 'comet:<id>'."})
+    if not req.stream:
+        status, payload = await proxy.unary_upstream_json(cfg, pid, upstream, body)
+        if status >= 400 or not (payload.get("choices")):
+            err = (payload.get("error") or {}) if isinstance(payload, dict) else {}
+            return JSONResponse(
+                {"type": "error",
+                 "error": {"type": "api_error",
+                           "message": str(err.get("message") or payload)[:300]}},
+                status_code=status if status >= 400 else 502, headers=decision)
+        return JSONResponse(
+            anthropic_api.openai_to_anthropic_response(payload, msg_id, label),
+            headers=decision)
+
+    chunks = proxy.stream_upstream_chunks(cfg, pid, upstream, body)
+    return StreamingResponse(
+        anthropic_api.transcode_stream(chunks, msg_id, label),
+        media_type="text/event-stream", headers=decision)
+
+
+@app.post("/v1/messages/count_tokens")
+async def anthropic_count_tokens(req: anthropic_api.AnthropicMessagesRequest):
+    # Claude Code probes this to budget its context window — without it, it
+    # refuses to talk to a custom ANTHROPIC_BASE_URL. Char-based estimate.
+    return {"input_tokens": anthropic_api.estimate_input_tokens(req)}
 
 
 @app.get("/v1/models")
@@ -266,6 +316,12 @@ async def admin_coeos_decisions():
         for k, v in sorted(decisions.items(), key=lambda kv: -kv[1])]}
 
 
+@app.delete("/admin/coeos/decisions")
+async def admin_coeos_decisions_clear():
+    decisions.clear()
+    return {"ok": True, "decisions": []}
+
+
 @app.get("/admin/coeos/export")
 async def admin_coeos_export():
     c = coeos_cfg(load_config())
@@ -364,4 +420,11 @@ async def index():
 @app.get("/dashboard")
 async def dashboard():
     path = importlib.resources.files("coeos_se") / "dashboard" / "index.html"
+    return FileResponse(str(path), media_type="text/html")
+
+
+@app.get("/endpoints")
+async def endpoints_page():
+    """Copy/paste connection settings for the common client apps."""
+    path = importlib.resources.files("coeos_se") / "dashboard" / "endpoints.html"
     return FileResponse(str(path), media_type="text/html")
