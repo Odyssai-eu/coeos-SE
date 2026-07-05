@@ -91,10 +91,21 @@
       <input type="file" id="importFile" accept=".json" style="display:none">
       <span class="msg" id="settingsMsg"></span>
     </div>
-    <div class="row">
+    <label style="margin-top:14px">Decider model — classifies every request
+      without an explicit axis header. Pick a FAST open-source model; give its
+      native id on each provider (empty id = the other provider covers).</label>
+    <div class="row" style="margin-top:4px">
       <div style="flex:1">
-        <label>Decider model (classifies each request)</label>
-        <select id="decider"></select>
+        <label>Display name</label>
+        <input type="text" id="deciderName" placeholder="GLM-4.7 Flash">
+      </div>
+      <div style="flex:1">
+        <label>OpenRouter id</label>
+        <input type="text" id="deciderOr" class="mono" placeholder="z-ai/glm-4.7-flash">
+      </div>
+      <div style="flex:1">
+        <label>Comet id</label>
+        <input type="text" id="deciderComet" class="mono" placeholder="glm-4.7-flash">
       </div>
       <div style="flex:1">
         <label>Default axis (when classification is ambiguous)</label>
@@ -228,16 +239,16 @@ function renderSettings() {
     (S.name || '') + (S.updated ? ' · ' + S.updated : '');
   const axes = S.axes || [];
   const bound = axes.filter(a => (a.model || '').trim());
-  const logicals = Object.keys(S.models || {}).sort();
-  // The decider runs on EVERY unclassified request — group the fast models
-  // (registry entries with "fast": true) first; picking a heavyweight works
-  // but taxes first-token latency on every call.
-  const fast = logicals.filter(n => (S.models[n] || {}).fast);
-  const slow = logicals.filter(n => !(S.models[n] || {}).fast);
-  const opt = n => `<option ${n === S.decider_model ? 'selected' : ''}>${esc(n)}</option>`;
-  document.getElementById('decider').innerHTML =
-    (fast.length ? `<optgroup label="fast — recommended for the decider">${fast.map(opt).join('')}</optgroup>` : '') +
-    (slow.length ? `<optgroup label="all models">${slow.map(opt).join('')}</optgroup>` : '');
+  // Decider = its own {name, or, comet} setting. Migrate a legacy
+  // decider_model (registry logical) into the fields once, for display.
+  let dec = S.decider;
+  if (!dec || typeof dec !== 'object') {
+    const e = (S.models || {})[S.decider_model] || {};
+    dec = {name: e.name || S.decider_model || '', or: e.or || '', comet: e.comet || ''};
+  }
+  document.getElementById('deciderName').value = dec.name || '';
+  document.getElementById('deciderOr').value = dec.or || '';
+  document.getElementById('deciderComet').value = dec.comet || '';
   document.getElementById('defaultAxis').innerHTML = bound.map(a =>
     `<option value="${esc(a.key)}" ${a.key === S.default_axis ? 'selected' : ''}>${esc(a.key)}</option>`).join('');
   document.getElementById('axes').innerHTML =
@@ -270,7 +281,9 @@ async function loadSettings() {
   renderSettings();
 }
 async function saveSettings() {
-  S.decider_model = document.getElementById('decider').value;
+  S.decider = {name: document.getElementById('deciderName').value.trim(),
+               or: document.getElementById('deciderOr').value.trim(),
+               comet: document.getElementById('deciderComet').value.trim()};
   S.default_axis = document.getElementById('defaultAxis').value;
   const r = await api('/admin/coeos', {method: 'PUT', body: JSON.stringify(S)});
   flash('saveMsg', r.ok, r.ok ? 'saved' : (await r.json()).detail?.message || 'error');

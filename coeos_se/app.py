@@ -34,7 +34,8 @@ from .providers import (PREFIX_TO_PROVIDER, PROVIDERS, list_upstream_models,
                         provider_key, provider_priority, ready_providers,
                         redact_provider)
 from .router import (COEOS_DISPLAY_ID, COEOS_MODEL_ID, bound_axes, coeos_cfg,
-                     coeos_resolve, decisions, registry_of, resolve_logical)
+                     coeos_resolve, decider_spec, decisions, registry_of,
+                     resolve_logical)
 
 _BUNDLED_SETTINGS = "TMB-Settings-SE-v0.1.json"
 
@@ -162,7 +163,7 @@ async def v1_models():
                 "router": True,
                 "settings": c.get("name"),
                 "updated": c.get("updated"),
-                "decider": c.get("decider_model"),
+                "decider": (decider_spec(c) or {}).get("name"),
                 "axes": {ax["key"]: ax["model"] for ax in axes},
             },
         })
@@ -194,6 +195,9 @@ class CoeosSettings(BaseModel):
     regime: Optional[str] = None
     updated: Optional[str] = None
     note: Optional[str] = None
+    # The decider's own setting: {name, or, comet}. `decider_model` (a logical
+    # name looked up in the registry) is the legacy form, still accepted.
+    decider: Optional[dict] = None
     decider_model: Optional[str] = None
     default_axis: Optional[str] = None
     axes: Optional[list] = None
@@ -238,10 +242,15 @@ async def admin_coeos_update(req: CoeosSettings):
     if req.models is not None and not isinstance(req.models, dict):
         raise HTTPException(400, detail={"error": "bad_registry",
             "message": "models must be an object: logical name -> {name, or, comet}."})
+    if req.decider is not None:
+        bad = [k for k, v in req.decider.items() if not isinstance(v, (str, type(None)))]
+        if bad:
+            raise HTTPException(400, detail={"error": "bad_decider",
+                "message": "decider must be {name, or, comet} with string values."})
     with config_txn() as cfg:
         c = cfg.get("coeos") or {}
         for field in ("enabled", "name", "regime", "updated", "note",
-                      "decider_model", "default_axis", "axes", "models"):
+                      "decider", "decider_model", "default_axis", "axes", "models"):
             val = getattr(req, field)
             if val is not None:
                 c[field] = bool(val) if field == "enabled" else val

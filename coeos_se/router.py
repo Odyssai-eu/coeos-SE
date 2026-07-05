@@ -56,6 +56,43 @@ def registry_of(c: dict) -> dict:
     return reg if isinstance(reg, dict) else {}
 
 
+def decider_spec(c: dict) -> dict | None:
+    """The decider's own setting: {name, or, comet} — its display name and its
+    native id on each provider, independent of the axis registry.
+
+    Back-compat: a legacy `decider_model` string is looked up in the registry
+    (or, failing that, treated as a raw upstream id on both providers)."""
+    d = c.get("decider")
+    if isinstance(d, dict) and any((d.get(PROVIDERS[p]["registry_field"]) or "").strip()
+                                   for p in PROVIDERS):
+        return d
+    legacy = (c.get("decider_model") or "").strip()
+    if not legacy:
+        return None
+    entry = registry_of(c).get(legacy)
+    if isinstance(entry, dict):
+        return {"name": entry.get("name") or legacy,
+                **{PROVIDERS[p]["registry_field"]: entry.get(PROVIDERS[p]["registry_field"]) or ""
+                   for p in PROVIDERS}}
+    return {"name": legacy,
+            **{PROVIDERS[p]["registry_field"]: legacy for p in PROVIDERS}}
+
+
+def resolve_decider(cfg: dict, c: dict) -> tuple[str, str] | None:
+    """Decider spec → (provider_id, upstream id), resolution option 1 (global
+    priority; a provider is skipped when not ready or its id is empty)."""
+    spec = decider_spec(c)
+    if not spec:
+        return None
+    for pid in provider_priority(cfg):
+        if not provider_ready(cfg, pid):
+            continue
+        upstream = (spec.get(PROVIDERS[pid]["registry_field"]) or "").strip()
+        if upstream:
+            return pid, upstream
+    return None
+
+
 def resolve_logical(cfg: dict, logical: str, pin: str | None = None) -> tuple[str, str] | None:
     """Resolution option 1: logical name → (provider_id, upstream_model_id).
 
@@ -133,10 +170,7 @@ async def llm_classify(cfg: dict, c: dict, axes: list[dict], messages: list[dict
     passed from config — nothing hard-coded. The decider is a reasoning
     router, not a tag matcher: full last message + axis descriptions + room to
     think, then a final `AXIS:` line. (api.py:7131)"""
-    decider = (c.get("decider_model") or "").strip()
-    if not decider:
-        return None
-    resolved = resolve_logical(cfg, decider)
+    resolved = resolve_decider(cfg, c)
     if resolved is None:
         return None  # decider unresolvable → caller falls back to default axis
     pid, upstream = resolved
