@@ -229,8 +229,15 @@ function renderSettings() {
   const axes = S.axes || [];
   const bound = axes.filter(a => (a.model || '').trim());
   const logicals = Object.keys(S.models || {}).sort();
-  document.getElementById('decider').innerHTML = logicals.map(n =>
-    `<option ${n === S.decider_model ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  // The decider runs on EVERY unclassified request — group the fast models
+  // (registry entries with "fast": true) first; picking a heavyweight works
+  // but taxes first-token latency on every call.
+  const fast = logicals.filter(n => (S.models[n] || {}).fast);
+  const slow = logicals.filter(n => !(S.models[n] || {}).fast);
+  const opt = n => `<option ${n === S.decider_model ? 'selected' : ''}>${esc(n)}</option>`;
+  document.getElementById('decider').innerHTML =
+    (fast.length ? `<optgroup label="fast — recommended for the decider">${fast.map(opt).join('')}</optgroup>` : '') +
+    (slow.length ? `<optgroup label="all models">${slow.map(opt).join('')}</optgroup>` : '');
   document.getElementById('defaultAxis').innerHTML = bound.map(a =>
     `<option value="${esc(a.key)}" ${a.key === S.default_axis ? 'selected' : ''}>${esc(a.key)}</option>`).join('');
   document.getElementById('axes').innerHTML =

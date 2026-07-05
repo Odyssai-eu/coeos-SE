@@ -24,11 +24,14 @@
     { "key": "fast_tools",    "label": "Tools & fast coding",           "model": "claude-haiku", "description": "Quick tool-calling turns, short factual lookups, low-latency agent steps.", "bench": "latency axis — no dedicated quality score", "verified": false }
   ],
   "models": {
-    "glm-5.2":      { "name": "GLM-5.2",        "or": "z-ai/glm-5.2",               "comet": "glm-5.2" },
-    "glm-5.1":      { "name": "GLM-5.1",        "or": "z-ai/glm-5.1",               "comet": "glm-5.1" },
-    "qwen-3.6":     { "name": "Qwen 3.6",       "or": "qwen/qwen-3.6",              "comet": "", "note": "OR id best-effort — verify via the dashboard Test button" },
-    "claude-opus":  { "name": "Claude Opus",    "or": "anthropic/claude-opus",       "comet": "", "note": "id as benched in TMB cloud v0.1" },
-    "claude-haiku": { "name": "Claude Haiku",   "or": "anthropic/claude-haiku-4-5",  "comet": "" },
-    "minimax-m3":   { "name": "MiniMax M3",     "or": "minimax/minimax-m3",          "comet": "", "note": "OR id best-effort — verify via the dashboard Test button" }
+    "glm-5.2":       { "name": "GLM-5.2",        "or": "z-ai/glm-5.2",               "comet": "glm-5.2" },
+    "glm-5.1":       { "name": "GLM-5.1",        "or": "z-ai/glm-5.1",               "comet": "glm-5.1" },
+    "qwen-3.6":      { "name": "Qwen 3.6",       "or": "qwen/qwen-3.6",              "comet": "", "note": "OR id best-effort — verify via the dashboard Test button" },
+    "claude-opus":   { "name": "Claude Opus",    "or": "anthropic/claude-opus",       "comet": "", "note": "id as benched in TMB cloud v0.1" },
+    "claude-haiku":  { "name": "Claude Haiku",   "or": "anthropic/claude-haiku-4-5",  "comet": "", "fast": true },
+    "minimax-m3":    { "name": "MiniMax M3",     "or": "minimax/minimax-m3",          "comet": "", "note": "OR id best-effort — verify via the dashboard Test button" },
+    "glm-4.7-flash": { "name": "GLM-4.7 Flash",  "or": "z-ai/glm-4.7-flash",          "comet": "glm-4.7-flash", "fast": true },
+    "glm-5-turbo":   { "name": "GLM-5 Turbo",    "or": "z-ai/glm-5-turbo",            "comet": "glm-5-turbo",   "fast": true },
+    "minimax-m2.7":  { "name": "MiniMax M2.7",   "or": "minimax/minimax-m2.7",        "comet": "", "fast": true }
   }
 }
