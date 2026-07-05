@@ -1,0 +1,14 @@
+# Never commit the runtime config — it can hold API keys.
+coeos-config.json
+coeos-config.json.tmp
+data/
+.env
+
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+.pytest_cache/
+.DS_Store

@@ -1,0 +1,34 @@
+{
+  "name": "TMB Settings SE — Best of all (cloud) · v0.1",
+  "regime": "cloud",
+  "updated": "2026-07-05",
+  "note": "Benchmark-composed virtual model: each skill axis routes to the model the TMB benchmarks proved best on it. Cloud regime = best-of-all, no slot constraints. Snapshot is dated and frozen; refreshed ~monthly from the scoreboards (plus ad-hoc when a hyped new model lands). Comet ids are filled where confirmed; empty ids fall back to OpenRouter (resolution option 1). Verify ids against the provider's /models via the dashboard Test button.",
+  "enabled": true,
+  "decider_model": "claude-haiku",
+  "default_axis": "code_general",
+  "axes": [
+    { "key": "creative",      "label": "Creative / long-form writing",  "model": "glm-5.2",      "description": "Long-form prose, storytelling, marketing copy, essays in any language. Not here if the deliverable is code.", "bench": "T01 480/500 (absolute record, > Opus 475)", "verified": true },
+    { "key": "legal_rgpd",    "label": "GDPR / privacy compliance",     "model": "glm-5.1",      "description": "GDPR and privacy compliance questions, DPA reviews, EU data-protection analysis.", "bench": "T02 48/50", "verified": true },
+    { "key": "legal_complex", "label": "Multi-jurisdiction legal",      "model": "qwen-3.6",     "description": "Multi-jurisdiction legal analysis, contracts, regulatory edge cases beyond GDPR.", "bench": "T05 49/50 (co-#1)", "verified": true },
+    { "key": "reasoning",     "label": "Reasoning / logic",             "model": "glm-5.2",      "description": "Logic puzzles, multi-step deduction, argument analysis — the deliverable is reasoning, not code.", "bench": "T06 46/50", "verified": true },
+    { "key": "calc",          "label": "Calculation / structured",      "model": "glm-5.2",      "description": "Structured computation, math word problems, tables, unit conversions, numeric consistency.", "bench": "T07 49/50", "verified": true },
+    { "key": "python",        "label": "Python / scripts",              "model": "claude-opus",  "description": "Python scripts, data pipelines, notebooks. The deliverable is Python code.", "bench": "T03 46.5/50 (cloud)", "verified": true },
+    { "key": "code_general",  "label": "General coding",                "model": "glm-5.2",      "description": "General coding when no language-specific axis fits. The safe default bucket.", "bench": "C01-C08 89.1% (cloud)", "verified": true },
+    { "key": "debug",         "label": "Debugging",                     "model": "glm-5.2",      "description": "Find and fix a bug in provided code, stack-trace analysis, regression hunting.", "bench": "C02 49/50 (panel record)", "verified": true },
+    { "key": "react",         "label": "React / frontend",              "model": "glm-5.2",      "description": "React or frontend TS/JS work: components, hooks, state, CSS.", "bench": "C04 49/50", "verified": true },
+    { "key": "swift",         "label": "Swift",                         "model": "",             "description": "Swift / iOS / macOS code.", "bench": "GAP — no strong model benched yet (unbound: excluded from routing)", "verified": false },
+    { "key": "refactoring",   "label": "Refactoring",                   "model": "glm-5.2",      "description": "Restructure existing code without changing behaviour; extract, rename, simplify.", "bench": "C06 49/50", "verified": true },
+    { "key": "plan_decompo",  "label": "Planning — decomposition",      "model": "minimax-m3",   "description": "Breaking a project or feature into tasks, milestones, work units.", "bench": "P01 39/50 (cloud)", "verified": true },
+    { "key": "plan_spec",     "label": "Planning — spec / handoff",     "model": "minimax-m3",   "description": "Writing specs, handoff documents, RFCs for someone else to implement.", "bench": "P04 47/50", "verified": true },
+    { "key": "plan_judgment", "label": "Planning — judgment / traps",   "model": "minimax-m3",   "description": "Reviewing plans for risks, traps, missing pieces; architectural judgment calls.", "bench": "P02 37 / P03 47", "verified": true },
+    { "key": "fast_tools",    "label": "Tools & fast coding",           "model": "claude-haiku", "description": "Quick tool-calling turns, short factual lookups, low-latency agent steps.", "bench": "latency axis — no dedicated quality score", "verified": false }
+  ],
+  "models": {
+    "glm-5.2":      { "name": "GLM-5.2",        "or": "z-ai/glm-5.2",               "comet": "glm-5.2" },
+    "glm-5.1":      { "name": "GLM-5.1",        "or": "z-ai/glm-5.1",               "comet": "glm-5.1" },
+    "qwen-3.6":     { "name": "Qwen 3.6",       "or": "qwen/qwen-3.6",              "comet": "", "note": "OR id best-effort — verify via the dashboard Test button" },
+    "claude-opus":  { "name": "Claude Opus",    "or": "anthropic/claude-opus",       "comet": "", "note": "id as benched in TMB cloud v0.1" },
+    "claude-haiku": { "name": "Claude Haiku",   "or": "anthropic/claude-haiku-4-5",  "comet": "" },
+    "minimax-m3":   { "name": "MiniMax M3",     "or": "minimax/minimax-m3",          "comet": "", "note": "OR id best-effort — verify via the dashboard Test button" }
+  }
+}
