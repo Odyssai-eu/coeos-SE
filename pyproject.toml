@@ -27,4 +27,4 @@ coeos-se = "coeos_se.__main__:main"
 include = ["coeos_se*"]
 
 [tool.setuptools.package-data]
-coeos_se = ["dashboard/*.html", "settings/*.json"]
+coeos_se = ["dashboard/*.html", "dashboard/images/*", "settings/*.json"]

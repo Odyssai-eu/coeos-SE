@@ -423,6 +423,17 @@ async def dashboard():
     return FileResponse(str(path), media_type="text/html")
 
 
+@app.get("/dashboard/images/{name}")
+async def dashboard_image(name: str):
+    # Static assets for the dashboard (logo). Filename-only, no path traversal.
+    if "/" in name or ".." in name:
+        raise HTTPException(404)
+    path = importlib.resources.files("coeos_se") / "dashboard" / "images" / name
+    if not path.is_file():
+        raise HTTPException(404, "asset not found")
+    return FileResponse(str(path))
+
+
 @app.get("/endpoints")
 async def endpoints_page():
     """Copy/paste connection settings for the common client apps."""
