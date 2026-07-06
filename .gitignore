@@ -15,3 +15,9 @@ build/
 
 # graphify local knowledge graph (per-repo, ~14 MB) — lives in the stack graph
 graphify-out/
+
+# Internal working docs — never publish (kept local only)
+CLAUDE.md
+plan.md
+docs/VELOCITY.md
+doc/sessions/
