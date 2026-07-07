@@ -97,6 +97,21 @@ async def _auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+# ── Découverte LAN (CodeOS / Companion) ──────────────────────────────────────
+# Public (jamais gaté : middleware ne couvre que /v1/ et /admin/). vendor='odyssai.eu'
+# pour que le scanner CodeOS matche. Pairing "pré-digéré" : la clé statique
+# COEOS_API_KEY est pré-partagée (provisionnée), aucun handshake /pair.
+@app.get("/.well-known/inference-engine.json")
+async def well_known_inference_engine():
+    gated = bool((os.environ.get("COEOS_API_KEY") or "").strip())
+    return {
+        "vendor": "odyssai.eu",
+        "product": "coeos-se",
+        "auth": {"required": gated, "scheme": "bearer", "scope": "/v1/*",
+                 "public_routes": ["/health", "/.well-known/*", "/v1/models"]},
+    }
+
+
 # ── OpenAI surface ───────────────────────────────────────────────────────────
 
 async def resolve_target(cfg: dict, model: str, headers, body: dict) -> tuple[str, str, dict]:
