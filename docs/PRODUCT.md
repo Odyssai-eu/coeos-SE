@@ -31,8 +31,8 @@ your client  (model: "coeos")
       ▼   classify → skill axis        explicit header, or a fast decider model
   CoeOS SE
       │
-      ▼   axis → model → provider      the TMB Settings: data, not code
-OpenRouter / Comet API
+      ▼   axis → model                 the TMB Settings: data, not code
+OpenRouter
       │
       ▼   the proven-best model answers — streamed back, untouched
 ```
@@ -40,8 +40,8 @@ OpenRouter / Comet API
 1. **Classify.** An agent that knows its phase sends `x-coeos-axis: plan_spec`
    and skips classification. Otherwise a small, fast model reads the request and
    picks the single best-matching axis.
-2. **Resolve.** The axis binds a *logical* model (e.g. `glm-5.2`); a per-provider
-   registry maps it to the right native id on OpenRouter or Comet.
+2. **Resolve.** The axis binds a *logical* model (e.g. `glm-5.2`); the registry
+   maps it to its native OpenRouter id.
 3. **Relay.** The request is proxied verbatim — streaming, tools,
    `reasoning_effort`, thinking budgets all pass through. The answer comes back in
    your client's wire format.
@@ -106,18 +106,17 @@ A built-in `/endpoints` page gives copy/paste setup for every client.
   `x-coeos-model` and `x-coeos-provider`. The dashboard shows a live decision
   counter.
 - **You can bypass the router** any time: call a logical model directly
-  (`model: "glm-5.2"`) or an explicit provider id (`or:z-ai/glm-5.2`,
-  `comet:glm-5.2`).
+  (`model: "glm-5.2"`) or an explicit OpenRouter id (`or:z-ai/glm-5.2`).
+- **The routing table stays fresh.** CoeOS SE polls GitHub daily and offers you
+  the newer TMB Settings when the benchmarks are regenerated — one click to apply.
 
 ---
 
-## Setup is two things: a key and a URL
+## Setup is one thing: your OpenRouter key
 
-Two providers, keys only — that's the entire configuration. Paste an
-[OpenRouter](https://openrouter.ai/settings/keys) and/or
-[Comet API](https://api.cometapi.com/) key in the dashboard. With both keys, a
-global priority decides which serves each model, and each provider covers the
-other's gaps automatically.
+OpenRouter, key only — that's the entire configuration. Paste your
+[OpenRouter](https://openrouter.ai/settings/keys) key in the dashboard and point
+your tools at the endpoint.
 
 ```bash
 docker compose up -d          # or: pip install . && coeos-se
@@ -157,7 +156,7 @@ ever leaves your network. SE is a taste of that, in one `docker compose up`.
 |---|---|
 | **What** | Benchmark-composed LLM router, one virtual model `coeos` |
 | **Interfaces** | OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` |
-| **Providers** | OpenRouter, Comet API — keys only, cloud-only |
+| **Provider** | OpenRouter — key only, cloud-only |
 | **Routing** | 15 skill axes, per-axis proven-best model, data-driven |
 | **Decider** | Fast model classifies each request; explicit header overrides |
 | **Guarantees** | Never silently reroutes; every decision observable |
@@ -173,11 +172,11 @@ ever leaves your network. SE is a taste of that, in one `docker compose up`.
 tier of CoeOS SE. The paid product is OdyssAI-X, which runs this over your own
 sovereign hardware.
 
-**Do I need both provider keys?** No — one is enough. With both, they cover each
-other's gaps and you pick the priority.
+**What do I need?** Just an OpenRouter key.
 
-**Can I use my own routing table?** Yes. Import/export the TMB Settings JSON from
-the dashboard. The bundled one is a starting point.
+**Does the routing table update?** Yes — CoeOS SE polls GitHub daily and offers
+the newer TMB Settings when the benchmarks are regenerated. You apply it in one
+click; nothing changes silently.
 
 **Does it support tool calling / streaming / thinking?** Yes — the proxy relays
 the request verbatim, so whatever your client and the upstream support works.

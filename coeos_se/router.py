@@ -3,9 +3,8 @@ axis's bound model to a (provider, upstream id) pair.
 
 Ported from OdyssAI-X scripts/api.py:6986-7269 (`coeos_resolve` and friends),
 with the cluster servability machinery deleted (cloud-only: every published
-model is always "hot") and the model registry extended to per-provider ids
-with resolution option 1: global priority → per-axis pin → fallback to the
-other provider when an id or key is missing.
+model is always "hot"). OpenRouter is the only provider: resolution is a plain
+registry lookup — no priority, no per-axis pin, no fallback table.
 
 The taxonomy (axes) and bindings come ENTIRELY from the imported TMB Settings
 — no hard-coded categories or rules.
@@ -19,7 +18,9 @@ import sys
 from fastapi import HTTPException
 
 from . import proxy
-from .providers import PROVIDERS, provider_priority, provider_ready
+from .providers import PROVIDER_ID, PROVIDERS, provider_ready
+
+_OR_FIELD = PROVIDERS[PROVIDER_ID]["registry_field"]  # "or"
 
 COEOS_MODEL_ID = "coeos"      # canonical id, matched case-insensitively
 COEOS_DISPLAY_ID = "CoeOS"    # public id emitted in /v1/models
@@ -50,73 +51,52 @@ def bound_axes(c: dict) -> list[dict]:
 
 
 def registry_of(c: dict) -> dict:
-    """Logical model name → {name, or, comet, note?}. The registry is the only
-    place provider-native ids live; axes bind portable logical names."""
+    """Logical model name → {name, or, note?}. The registry is the only place
+    provider-native ids live; axes bind portable logical names."""
     reg = c.get("models")
     return reg if isinstance(reg, dict) else {}
 
 
 def decider_spec(c: dict) -> dict | None:
-    """The decider's own setting: {name, or, comet} — its display name and its
-    native id on each provider, independent of the axis registry.
+    """The decider's own setting: {name, or} — its display name and OpenRouter
+    id, independent of the axis registry.
 
     Back-compat: a legacy `decider_model` string is looked up in the registry
-    (or, failing that, treated as a raw upstream id on both providers)."""
+    (or treated as a raw upstream id)."""
     d = c.get("decider")
-    if isinstance(d, dict) and any((d.get(PROVIDERS[p]["registry_field"]) or "").strip()
-                                   for p in PROVIDERS):
+    if isinstance(d, dict) and (d.get(_OR_FIELD) or "").strip():
         return d
     legacy = (c.get("decider_model") or "").strip()
     if not legacy:
         return None
     entry = registry_of(c).get(legacy)
     if isinstance(entry, dict):
-        return {"name": entry.get("name") or legacy,
-                **{PROVIDERS[p]["registry_field"]: entry.get(PROVIDERS[p]["registry_field"]) or ""
-                   for p in PROVIDERS}}
-    return {"name": legacy,
-            **{PROVIDERS[p]["registry_field"]: legacy for p in PROVIDERS}}
+        return {"name": entry.get("name") or legacy, _OR_FIELD: entry.get(_OR_FIELD) or ""}
+    return {"name": legacy, _OR_FIELD: legacy}
 
 
 def resolve_decider(cfg: dict, c: dict) -> tuple[str, str] | None:
-    """Decider spec → (provider_id, upstream id), resolution option 1 (global
-    priority; a provider is skipped when not ready or its id is empty)."""
+    """Decider spec → (provider_id, upstream id) on OpenRouter."""
     spec = decider_spec(c)
-    if not spec:
+    if not spec or not provider_ready(cfg):
         return None
-    for pid in provider_priority(cfg):
-        if not provider_ready(cfg, pid):
-            continue
-        upstream = (spec.get(PROVIDERS[pid]["registry_field"]) or "").strip()
-        if upstream:
-            return pid, upstream
-    return None
+    upstream = (spec.get(_OR_FIELD) or "").strip()
+    return (PROVIDER_ID, upstream) if upstream else None
 
 
-def resolve_logical(cfg: dict, logical: str, pin: str | None = None) -> tuple[str, str] | None:
-    """Resolution option 1: logical name → (provider_id, upstream_model_id).
-
-    Order = per-axis pin first (if any), then the global provider priority.
-    A provider is skipped when it's not ready (disabled / no key) or the
-    registry has no id for it — the other provider covers the gap. A logical
-    with no registry entry is treated as the upstream id itself (back-compat
-    with hand-written settings)."""
+def resolve_logical(cfg: dict, logical: str) -> tuple[str, str] | None:
+    """Logical name → (provider_id, upstream_model_id) on OpenRouter. Plain
+    registry lookup — no priority, no fallback. A logical with no registry
+    entry is treated as the upstream id itself (back-compat with hand-written
+    settings)."""
     logical = (logical or "").strip()
-    if not logical:
+    if not logical or not provider_ready(cfg):
         return None
     entry = registry_of(coeos_cfg(cfg)).get(logical)
-    order = provider_priority(cfg)
-    if pin in PROVIDERS:
-        order = [pin] + [p for p in order if p != pin]
-    for pid in order:
-        if not provider_ready(cfg, pid):
-            continue
-        if entry is None:
-            return pid, logical  # legacy: the binding IS the upstream id
-        upstream = (entry.get(PROVIDERS[pid]["registry_field"]) or "").strip()
-        if upstream:
-            return pid, upstream
-    return None
+    if entry is None:
+        return PROVIDER_ID, logical  # legacy: the binding IS the upstream id
+    upstream = (entry.get(_OR_FIELD) or "").strip()
+    return (PROVIDER_ID, upstream) if upstream else None
 
 
 def header_axis(headers, keys: list[str]) -> str | None:
@@ -238,8 +218,7 @@ async def coeos_resolve(cfg: dict, headers, body: dict) -> dict:
 
     ax = next(a for a in axes if a["key"] == axis)
     logical = str(ax["model"]).strip()
-    pin = ax.get("provider")
-    resolved = resolve_logical(cfg, logical, pin)
+    resolved = resolve_logical(cfg, logical)
     if resolved is None:
         entry = registry_of(c).get(logical) or {}
         display = entry.get("name") or logical
@@ -247,10 +226,9 @@ async def coeos_resolve(cfg: dict, headers, body: dict) -> dict:
             "error": "coeos_unresolvable",
             "axis": axis,
             "recommended": display,
-            "message": f"{display} — no ready provider can serve it. Add your "
-                       "OpenRouter or Comet API key, or fill this model's id in "
-                       "the registry. CoeOS does not silently route to a "
-                       "different model."})
+            "message": f"{display} — can't be served. Add your OpenRouter API key, "
+                       "or fill this model's id in the registry. CoeOS does not "
+                       "silently route to a different model."})
     pid, upstream = resolved
 
     k = (logical, axis, pid)

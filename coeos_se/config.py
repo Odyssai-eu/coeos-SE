@@ -6,12 +6,8 @@ everything: provider keys + the imported TMB Settings.
 
 Shape:
     {
-      "providers": {
-        "openrouter": {"api_key": "...", "enabled": true},
-        "comet":      {"api_key": "...", "enabled": true}
-      },
-      "provider_priority": ["openrouter", "comet"],
-      "coeos": { ...TMB Settings (enabled, name, updated, decider_model,
+      "providers": { "openrouter": {"api_key": "...", "enabled": true} },
+      "coeos": { ...TMB Settings (enabled, name, version, updated, decider,
                  default_axis, axes[], models{}) ... }
     }
 """

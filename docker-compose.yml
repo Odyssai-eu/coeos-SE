@@ -5,10 +5,9 @@ services:
     ports:
       - "4600:4600"
     environment:
-      # Either paste keys in the dashboard (stored in ./data/coeos-config.json)
-      # or provide them here / via a .env file next to this compose file.
+      # Paste the key in the dashboard (stored in ./data/coeos-config.json) or
+      # provide it here / via a .env file next to this compose file.
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - COMETAPI_KEY=${COMETAPI_KEY:-}
       # Optional: require this bearer key on /v1/* and /admin/*.
       - COEOS_API_KEY=${COEOS_API_KEY:-}
     volumes:

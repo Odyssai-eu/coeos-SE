@@ -53,9 +53,9 @@ def test_openrouter_gets_unified_reasoning_param():
     assert fwd["reasoning"] == {"enabled": False}
     fwd_on = _prepare_body({"thinking": True}, "z-ai/glm-5.2", pid="openrouter")
     assert fwd_on["reasoning"] == {"enabled": True}
-    # explicit client reasoning wins; comet untouched; no intent → no param
+    # explicit client reasoning wins; non-OR pid untouched; no intent → no param
     fwd_cl = _prepare_body({"thinking": False, "reasoning": {"effort": "low"}},
                            "z-ai/glm-5.2", pid="openrouter")
     assert fwd_cl["reasoning"] == {"effort": "low"}
-    assert "reasoning" not in _prepare_body({"thinking": False}, "glm-5.2", pid="comet")
+    assert "reasoning" not in _prepare_body({"thinking": False}, "glm-5.2", pid=None)
     assert "reasoning" not in _prepare_body({}, "z-ai/glm-5.2", pid="openrouter")

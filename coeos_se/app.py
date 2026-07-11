@@ -1,21 +1,22 @@
 """CoeOS SE — FastAPI app: OpenAI-compatible surface + admin + dashboard.
 
-Endpoint map (ported from OdyssAI-X scripts/api.py, trimmed to SE scope):
-  POST /v1/chat/completions   the OpenAI surface (model:"coeos" | logical | or:/comet: prefixed)
+Endpoint map (OpenRouter-only):
+  POST /v1/chat/completions   the OpenAI surface (model:"coeos" | logical | or:<id>)
+  POST /v1/messages           the Anthropic surface (Claude Code)
   GET  /v1/models             CoeOS + the registry's logical models
-  GET/PUT /admin/coeos        read / import the TMB Settings (PUT = import)
+  GET/PUT /admin/coeos        read / import the TMB Settings (routing table, underground)
+  GET  /admin/army            the model roster (display names only)
+  GET  /admin/settings-update  update status (?check=true to poll GitHub now)
+  POST /admin/settings-update/apply  download + apply the latest settings
   GET  /admin/coeos/decisions routing decision counters
-  GET  /admin/coeos/export    settings JSON as a download
-  GET  /admin/providers       redacted provider list (never returns keys)
-  PUT  /admin/providers/{id}  set/clear key, toggle enabled
-  POST /admin/providers/{id}/test        reachability via upstream /models
-  GET  /admin/providers/{id}/upstream-models
-  PUT  /admin/priority        global provider preference order
+  GET  /admin/providers       redacted OpenRouter view (never returns the key)
+  PUT  /admin/providers/openrouter  set/clear the key
   GET  /dashboard             single-file web UI
 """
 
 from __future__ import annotations
 
+import asyncio
 import importlib.resources
 import json
 import os
@@ -30,16 +31,16 @@ from fastapi.responses import (FileResponse, JSONResponse, RedirectResponse,
                                Response, StreamingResponse)
 from pydantic import BaseModel
 
-from . import __version__, anthropic_api, proxy, router
+from . import __version__, anthropic_api, proxy, router, updates
 from .config import config_txn, load_config
-from .providers import (PREFIX_TO_PROVIDER, PROVIDERS, list_upstream_models,
-                        provider_key, provider_priority, ready_providers,
+from .providers import (PREFIX_TO_PROVIDER, PROVIDER_ID, PROVIDERS,
+                        list_upstream_models, provider_key, ready_providers,
                         redact_provider)
 from .router import (COEOS_DISPLAY_ID, COEOS_MODEL_ID, bound_axes, coeos_cfg,
                      coeos_resolve, decider_spec, decisions, registry_of,
                      resolve_logical)
 
-_BUNDLED_SETTINGS = "TMB-Settings-SE-v0.1.json"
+_BUNDLED_SETTINGS = "TMB-Settings-SE.json"
 
 
 def _bundled_settings_text() -> str | None:
@@ -72,7 +73,16 @@ def _auto_import_settings() -> None:
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     _auto_import_settings()
-    yield
+    # Poll GitHub for a newer TMB Settings (offer, never auto-apply).
+    # COEOS_NO_POLL=1 disables the background network call (tests).
+    task = None
+    if os.environ.get("COEOS_NO_POLL") != "1":
+        task = asyncio.create_task(updates.periodic_loop())
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
 
 
 app = FastAPI(title="CoeOS SE", version=__version__, lifespan=_lifespan)
@@ -116,8 +126,8 @@ async def well_known_inference_engine():
 
 async def resolve_target(cfg: dict, model: str, headers, body: dict) -> tuple[str, str, dict]:
     """Shared model-id resolution for both wire surfaces (OpenAI + Anthropic):
-    'coeos' → router decision; 'or:'/'comet:' → explicit provider; a registry
-    logical → resolution option 1. Returns (pid, upstream, decision_headers)."""
+    'coeos' → router decision; 'or:<id>' → explicit OpenRouter; a registry
+    logical → registry lookup. Returns (pid, upstream, decision_headers)."""
     # 1. The virtual router id.
     if model.lower() == COEOS_MODEL_ID:
         d = await coeos_resolve(cfg, headers, body)
@@ -125,7 +135,7 @@ async def resolve_target(cfg: dict, model: str, headers, body: dict) -> tuple[st
             "x-coeos-axis": d["axis"], "x-coeos-model": d["logical"],
             "x-coeos-provider": d["provider"]}
 
-    # 2. Explicit provider prefix: "or:z-ai/glm-5.2", "comet:glm-5.2".
+    # 2. Explicit OpenRouter prefix: "or:z-ai/glm-5.2".
     if ":" in model:
         prefix, upstream = model.split(":", 1)
         pid = PREFIX_TO_PROVIDER.get(prefix.lower())
@@ -137,7 +147,7 @@ async def resolve_target(cfg: dict, model: str, headers, body: dict) -> tuple[st
                                f"the dashboard or via {PROVIDERS[pid]['api_key_env']}."})
             return pid, upstream.strip(), {"x-coeos-provider": pid}
 
-    # 3. A logical model name from the registry (resolution option 1).
+    # 3. A logical model name from the registry.
     resolved = resolve_logical(cfg, model)
     if resolved is not None:
         pid, upstream = resolved
@@ -146,8 +156,7 @@ async def resolve_target(cfg: dict, model: str, headers, body: dict) -> tuple[st
     raise HTTPException(status_code=404, detail={
         "error": "unknown_model",
         "message": f"unknown model {model!r}. Use 'coeos', a logical model from "
-                   "the registry (GET /v1/models), or an explicit "
-                   "'or:<id>' / 'comet:<id>'."})
+                   "the registry (GET /v1/models), or an explicit 'or:<id>'."})
 
 
 @app.post("/v1/chat/completions")
@@ -241,13 +250,42 @@ async def v1_models():
             "x_coeos": {
                 "router": False,
                 "name": entry.get("name") or logical,
-                "ids": {f: (entry.get(f) or None)
-                        for f in (PROVIDERS[p]["registry_field"] for p in PROVIDERS)},
+                "or": entry.get("or") or None,
                 "resolvable": resolved is not None,
-                "provider": resolved[0] if resolved else None,
             },
         })
     return {"object": "list", "data": data}
+
+
+@app.get("/admin/army")
+async def admin_army():
+    """The roster of models CoeOS can field — display names only. The routing
+    table itself (which axis → which model) is intentionally not surfaced."""
+    c = coeos_cfg(load_config())
+    army = [(e.get("name") or logical) for logical, e in registry_of(c).items()
+            if isinstance(e, dict)]
+    return {"enabled": bool(c.get("enabled")), "settings": c.get("name"),
+            "version": c.get("version"), "updated": c.get("updated"),
+            "army": sorted(set(army))}
+
+
+# ── Settings auto-update (poll GitHub, offer, apply on demand) ───────────────
+
+@app.get("/admin/settings-update")
+async def admin_settings_update(check: bool = False):
+    """Update status. `?check=true` forces a fresh GitHub poll."""
+    if check or updates.STATE.get("checked_at") is None:
+        return await updates.check()
+    return dict(updates.STATE)
+
+
+@app.post("/admin/settings-update/apply")
+async def admin_settings_update_apply():
+    """Download the latest TMB Settings from GitHub and apply (keys kept)."""
+    try:
+        return await updates.apply()
+    except Exception as e:
+        raise HTTPException(502, f"update failed: {e}")
 
 
 # ── Admin: CoeOS settings ────────────────────────────────────────────────────
@@ -306,12 +344,12 @@ async def admin_coeos_update(req: CoeosSettings):
         _validate_axes(req.axes)
     if req.models is not None and not isinstance(req.models, dict):
         raise HTTPException(400, detail={"error": "bad_registry",
-            "message": "models must be an object: logical name -> {name, or, comet}."})
+            "message": "models must be an object: logical name -> {name, or}."})
     if req.decider is not None:
         bad = [k for k, v in req.decider.items() if not isinstance(v, (str, type(None)))]
         if bad:
             raise HTTPException(400, detail={"error": "bad_decider",
-                "message": "decider must be {name, or, comet} with string values."})
+                "message": "decider must be {name, or} with string values."})
     with config_txn() as cfg:
         c = cfg.get("coeos") or {}
         for field in ("enabled", "name", "regime", "updated", "note",
@@ -358,8 +396,7 @@ class ProviderUpdate(BaseModel):
 @app.get("/admin/providers")
 async def admin_providers_list():
     cfg = load_config()
-    return {"data": [redact_provider(cfg, pid) for pid in PROVIDERS],
-            "priority": provider_priority(cfg)}
+    return {"data": [redact_provider(cfg, pid) for pid in PROVIDERS]}
 
 
 @app.put("/admin/providers/{pid}")
@@ -376,20 +413,6 @@ async def admin_providers_update(pid: str, req: ProviderUpdate):
         if req.enabled is not None:
             cur["enabled"] = bool(req.enabled)
     return redact_provider(load_config(), pid)
-
-
-class PriorityUpdate(BaseModel):
-    priority: list[str]
-
-
-@app.put("/admin/priority")
-async def admin_priority_update(req: PriorityUpdate):
-    bad = [p for p in req.priority if p not in PROVIDERS]
-    if bad:
-        raise HTTPException(400, f"unknown providers: {bad}")
-    with config_txn() as cfg:
-        cfg["provider_priority"] = req.priority
-    return {"priority": provider_priority(load_config())}
 
 
 @app.post("/admin/providers/{pid}/test")

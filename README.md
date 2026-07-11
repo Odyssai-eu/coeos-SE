@@ -20,8 +20,8 @@ client (model:"coeos")
    ▼ classify → skill axis        (explicit header, or a fast decider LLM)
 CoeOS SE
    │
-   ▼ axis → model → provider      (the TMB Settings: data, not code)
-OpenRouter / Comet API
+   ▼ axis → model                 (the TMB Settings: data, not code)
+OpenRouter
 ```
 
 ## Quickstart
@@ -32,9 +32,9 @@ docker compose up -d
 ```
 
 Open `http://localhost:4600/dashboard`, paste your
-[OpenRouter](https://openrouter.ai/settings/keys) and/or
-[Comet API](https://api.cometapi.com/) key. That's the whole setup — the
-bundled routing table (TMB Settings) is imported on first boot.
+[OpenRouter](https://openrouter.ai/settings/keys) key. That's the whole setup —
+the bundled routing table (TMB Settings) is imported on first boot, and CoeOS SE
+polls GitHub daily and offers you the newer table when it lands.
 
 Then point any OpenAI client at it:
 
@@ -61,20 +61,17 @@ base URL, use model `coeos`.
 3. **Default axis** — if classification is ambiguous or the decider is
    unavailable, the configured default (e.g. `code_general`) applies.
 
-The chosen axis binds a **logical model** (e.g. `glm-5.2`), and a per-provider
-registry maps it to each provider's native id
-(`z-ai/glm-5.2` on OpenRouter, `glm-5.2` on Comet). Resolution follows your
-provider priority, falls back to the other provider when an id or key is
-missing, and honours per-axis pins. If nothing can serve the proven-best model,
-you get a clear 503 — **CoeOS never silently routes to a different model**.
+The chosen axis binds a **logical model** (e.g. `glm-5.2`), and the registry
+maps it to its native OpenRouter id (`z-ai/glm-5.2`). If the proven-best model
+can't be served (no key), you get a clear 503 — **CoeOS never silently routes
+to a different model**.
 
 Every response carries `x-coeos-axis`, `x-coeos-model` and `x-coeos-provider`
 headers so you can observe each decision; counters are on the dashboard and
 `GET /admin/coeos/decisions`.
 
 You can also bypass the router: call a logical model directly
-(`model: "glm-5.2"`) or an explicit provider id
-(`model: "or:z-ai/glm-5.2"`, `model: "comet:glm-5.2"`).
+(`model: "glm-5.2"`) or an explicit OpenRouter id (`model: "or:z-ai/glm-5.2"`).
 
 ## The TMB Settings — routing as data
 
@@ -114,28 +111,28 @@ client.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /v1/chat/completions` | OpenAI surface (`coeos`, logical, or `or:`/`comet:` ids) |
+| `POST /v1/chat/completions` | OpenAI surface (`coeos`, logical, or `or:<id>`) |
 | `POST /v1/messages` (+ `/count_tokens`) | Anthropic surface (Claude Code, Anthropic SDKs) |
 | `GET /endpoints` | copy/paste client setup snippets |
 | `GET /v1/models` | `CoeOS` + the registry's logical models |
-| `GET/PUT /admin/coeos` | read / import the TMB Settings |
+| `GET /admin/army` | the model roster (display names) |
+| `GET /admin/settings-update` (+ `/apply`) | check / apply the latest TMB Settings from GitHub |
 | `GET /admin/coeos/decisions` | routing counters |
-| `GET /admin/coeos/export` | settings download |
-| `GET/PUT /admin/providers*` | keys, enable/disable, reachability test |
-| `PUT /admin/priority` | provider preference order |
+| `PUT /admin/providers/openrouter` | set / clear the key |
 | `GET /health` | status |
 
 Set `COEOS_API_KEY` to require a bearer key on `/v1/*` and `/admin/*`.
 
 ## Configuration
 
-One file (`coeos-config.json`, or `COEOS_CONFIG`): provider keys + the imported
-settings. Keys can also come from `OPENROUTER_API_KEY` / `COMETAPI_KEY` env
-vars. See [.env.example](.env.example).
+One file (`coeos-config.json`, or `COEOS_CONFIG`): the OpenRouter key + the
+imported settings. The key can also come from the `OPENROUTER_API_KEY` env var.
+See [.env.example](.env.example). CoeOS SE polls `COEOS_SETTINGS_URL` (the TMB
+Settings on GitHub) every `COEOS_UPDATE_INTERVAL` seconds (default 24 h).
 
 ## Why cloud-only? (and what the full CoeOS is)
 
-CoeOS SE is the **Simple Edition**: two cloud providers, keys only, by design.
+CoeOS SE is the **Simple Edition**: OpenRouter, keys only, by design.
 The full CoeOS runs inside [OdyssAI-X](https://odyssai.eu) — the same
 benchmark-composed routing over **your own hardware**: local MLX model pools,
 distributed clusters, cloud fallback, and the sovereign local regime where no

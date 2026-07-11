@@ -11,8 +11,8 @@ def cfg_file(tmp_path, monkeypatch):
     so tests control provider readiness exactly."""
     p = tmp_path / "coeos-config.json"
     monkeypatch.setenv("COEOS_CONFIG", str(p))
+    monkeypatch.setenv("COEOS_NO_POLL", "1")  # no background GitHub call in tests
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.delenv("COMETAPI_KEY", raising=False)
     monkeypatch.delenv("COEOS_API_KEY", raising=False)
     return p
 
@@ -30,32 +30,27 @@ def write_cfg(cfg_file):
 BASE_SETTINGS = {
     "enabled": True,
     "name": "test settings",
-    "decider_model": "haiku",
+    "updated": "2026-07-01",
+    "decider": {"name": "Haiku", "or": "anthropic/haiku"},
     "default_axis": "code",
     "axes": [
-        {"key": "code", "label": "Code", "model": "glm",
-         "description": "coding"},
-        {"key": "plan", "label": "Plan", "model": "mm",
-         "description": "planning"},
-        {"key": "swift", "label": "Swift", "model": "",
-         "description": "unbound gap"},
-        {"key": "pinned", "label": "Pinned", "model": "glm",
-         "provider": "comet", "description": "comet-pinned axis"},
+        {"key": "code", "label": "Code", "model": "glm", "description": "coding"},
+        {"key": "plan", "label": "Plan", "model": "mm", "description": "planning"},
+        {"key": "swift", "label": "Swift", "model": "", "description": "unbound gap"},
     ],
     "models": {
-        "glm":   {"name": "GLM",    "or": "z-ai/glm", "comet": "glm"},
-        "mm":    {"name": "MM",     "or": "minimax/mm", "comet": ""},
-        "haiku": {"name": "Haiku",  "or": "anthropic/haiku", "comet": ""},
+        "glm":   {"name": "GLM", "or": "z-ai/glm"},
+        "mm":    {"name": "MM", "or": "minimax/mm"},
+        "haiku": {"name": "Haiku", "or": "anthropic/haiku"},
     },
 }
 
 
 @pytest.fixture()
 def base_cfg(write_cfg):
-    """Config with both keys set and the base settings imported."""
+    """Config with the OpenRouter key set and the base settings imported."""
     cfg = {
-        "providers": {"openrouter": {"api_key": "sk-or"},
-                      "comet": {"api_key": "sk-comet"}},
+        "providers": {"openrouter": {"api_key": "sk-or"}},
         "coeos": json.loads(json.dumps(BASE_SETTINGS)),
     }
     write_cfg(cfg)

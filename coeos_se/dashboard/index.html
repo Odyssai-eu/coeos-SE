@@ -14,7 +14,6 @@
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 80px; }
-  header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
   .brand { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
   .logo-img { width: 96px; height: 96px; border-radius: 10px; flex: 0 0 auto; }
   .brand-txt { flex: 1 1 340px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -28,15 +27,12 @@
        border-bottom: 1px solid var(--border); padding-bottom: 6px; }
   .panel { background: var(--panel); border: 1px solid var(--border);
            border-radius: 8px; padding: 14px 16px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
   .badge { display: inline-block; padding: 1px 9px; border-radius: 10px;
            font-size: 12px; border: 1px solid var(--border); }
   .badge.ok { color: var(--ok); border-color: var(--ok); }
   .badge.off { color: var(--muted); }
-  .badge.err { color: var(--err); border-color: var(--err); }
   label { color: var(--muted); font-size: 12px; display: block; margin: 8px 0 3px; }
-  input[type=text], input[type=password], select {
+  input[type=text], input[type=password] {
     width: 100%; background: var(--bg); color: var(--text); padding: 6px 9px;
     border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono);
     font-size: 13px; }
@@ -44,22 +40,28 @@
            border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13px; }
   button:hover { border-color: var(--accent); }
   button.primary { background: #1f6feb; border-color: #1f6feb; }
+  button.ok { background: #238636; border-color: #238636; }
   .row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
   th { color: var(--muted); font-weight: 500; font-size: 12px; }
-  td input, td select { padding: 4px 7px; font-size: 12.5px; }
   .mono { font-family: var(--mono); font-size: 12.5px; }
   .muted { color: var(--muted); }
   .small { font-size: 12px; }
   .msg { font-size: 12.5px; margin-left: 8px; }
   .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
-  .bench { color: var(--muted); font-size: 11.5px; }
   a { color: var(--accent); text-decoration: none; }
   .footer { margin-top: 36px; color: var(--muted); font-size: 12px;
             border-top: 1px solid var(--border); padding-top: 14px; }
   .pill { font-family: var(--mono); font-size: 12px; background: var(--bg);
           border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; }
+  .army { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .unit { font-family: var(--mono); font-size: 13px; background: var(--bg);
+          border: 1px solid var(--border); border-radius: 20px; padding: 5px 13px; }
+  .update { background: rgba(88,166,255,.08); border: 1px solid var(--accent);
+            border-radius: 8px; padding: 12px 15px; margin-bottom: 14px;
+            display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .update.on { display: flex; }
 </style>
 </head>
 <body>
@@ -78,67 +80,33 @@
     <a href="/endpoints" class="ep-link"><button>Endpoints — client setup</button></a>
   </div>
 
-  <h2>Providers — paste a key, that's the whole setup</h2>
-  <div class="grid2" id="providers"></div>
-  <div class="row">
-    <label style="margin:0">Priority</label>
-    <select id="priority" style="width:auto" onchange="savePriority()">
-      <option value="openrouter,comet">OpenRouter first</option>
-      <option value="comet,openrouter">Comet first</option>
-    </select>
-    <span class="muted small">First choice per model; the other covers gaps
-      (missing id or key).</span>
-    <span class="msg" id="priorityMsg"></span>
+  <div class="update" id="updateBanner">
+    <strong>New TMB Settings available</strong>
+    <span class="sub" id="updateInfo"></span>
+    <span style="flex:1"></span>
+    <button class="ok" onclick="applyUpdate()">Update now</button>
+    <span class="msg" id="updateMsg"></span>
   </div>
 
-  <h2>Routing — the TMB Settings</h2>
+  <h2>OpenRouter — paste your key, that's the whole setup</h2>
+  <div class="panel" id="orCard">…</div>
+
+  <h2>Your army</h2>
   <div class="panel">
     <div class="row" style="margin-top:0">
-      <label style="margin:0"><input type="checkbox" id="enabled"
-        onchange="toggleEnabled()"> enabled</label>
-      <span class="muted small" id="settingsMeta"></span>
+      <label style="margin:0"><input type="checkbox" id="enabled" onchange="toggleEnabled()"> router enabled</label>
+      <span class="muted small" id="armyMeta"></span>
       <span style="flex:1"></span>
-      <button onclick="importSettings()">Import settings…</button>
-      <button onclick="window.location='/admin/coeos/export'">Export</button>
-      <input type="file" id="importFile" accept=".json" style="display:none">
-      <span class="msg" id="settingsMsg"></span>
+      <button onclick="checkUpdate(true)">Check for updates</button>
+      <span class="msg" id="updateCheckMsg"></span>
     </div>
-    <label style="margin-top:14px">Decider model — classifies every request
-      without an explicit axis header. Pick a FAST open-source model; give its
-      native id on each provider (empty id = the other provider covers).</label>
-    <div class="row" style="margin-top:4px">
-      <div style="flex:1">
-        <label>Display name</label>
-        <input type="text" id="deciderName" placeholder="GLM-4.7 Flash">
-      </div>
-      <div style="flex:1">
-        <label>OpenRouter id</label>
-        <input type="text" id="deciderOr" class="mono" placeholder="z-ai/glm-4.7-flash">
-      </div>
-      <div style="flex:1">
-        <label>Comet id</label>
-        <input type="text" id="deciderComet" class="mono" placeholder="glm-4.7-flash">
-      </div>
-      <div style="flex:1">
-        <label>Default axis (when classification is ambiguous)</label>
-        <select id="defaultAxis"></select>
-      </div>
-    </div>
-    <label style="margin-top:14px">Skill axes — each routes to the model the
-      benchmarks proved best. Empty binding = axis excluded from routing.</label>
-    <table id="axes"></table>
-    <label style="margin-top:14px">Model registry — logical name → each
-      provider's native id. Empty id = falls back to the other provider.</label>
-    <table id="registry"></table>
-    <div class="row">
-      <button onclick="addRegistryRow()">Add model</button>
-      <span style="flex:1"></span>
-      <button class="primary" onclick="saveSettings()">Save routing</button>
-      <span class="msg" id="saveMsg"></span>
-    </div>
+    <div class="army" id="army"></div>
+    <div class="sub small" style="margin-top:12px">The models CoeOS fields for you.
+      Which skill routes to which is decided from the TMB benchmarks — and kept
+      under the hood.</div>
   </div>
 
-  <h2>Decisions</h2>
+  <h2>Requests routed</h2>
   <div class="panel">
     <table id="decisions"><tr><td class="muted">No routed requests yet.</td></tr></table>
     <div class="row">
@@ -149,16 +117,13 @@
   </div>
 
   <div class="footer">
-    CoeOS SE routes to cloud models only — that's its limitation by design.
+    CoeOS SE routes through OpenRouter only — that's its limitation by design.
     The full CoeOS runs inside <a href="https://odyssai.eu">OdyssAI-X</a>,
     including the sovereign local regime on your own hardware. MIT licensed.
   </div>
 </div>
 
 <script>
-let S = null;      // current coeos settings
-let PROV = [];     // provider list
-
 function key() { return localStorage.getItem('coeos_admin_key') || ''; }
 async function api(path, opts) {
   opts = opts || {};
@@ -183,153 +148,76 @@ function flash(id, ok, text) {
 async function loadHealth() {
   const h = await (await api('/health')).json();
   document.getElementById('health').textContent =
-    'v' + h.version + ' · ' + (h.settings || 'no settings') +
-    ' · ' + h.axes_bound + ' axes bound · ready: ' +
-    (h.providers_ready.join(', ') || 'none');
+    'v' + h.version + ' · ' + h.axes_bound + ' axes · '
+    + (h.providers_ready.length ? 'ready' : 'no key');
 }
 
-async function loadProviders() {
+async function loadOpenRouter() {
   const d = await (await api('/admin/providers')).json();
-  PROV = d.data;
-  document.getElementById('priority').value = d.priority.join(',');
-  document.getElementById('providers').innerHTML = PROV.map(p => `
-    <div class="panel">
-      <div class="row" style="margin-top:0; justify-content:space-between">
-        <strong>${esc(p.label)}</strong>
-        <span class="badge ${p.ready ? 'ok' : 'off'}">
-          ${p.ready ? 'ready' : (p.enabled ? 'no key' : 'disabled')}</span>
-      </div>
-      <div class="mono muted small">${esc(p.api_base)}</div>
-      <label>API key ${p.api_key_set ? '(set — ' + p.api_key_source + ')' : ''}
-        · <a href="${esc(p.keys_url)}" target="_blank">get one</a>
-        · or env ${esc(p.api_key_env)}</label>
-      <input type="password" id="key-${p.id}" placeholder="${p.api_key_set ? 'saved — paste to replace' : 'sk-…'}">
-      <div class="row">
-        <button class="primary" onclick="saveKey('${p.id}')">Save key</button>
-        <button onclick="testProvider('${p.id}')">Test</button>
-        <label style="margin:0"><input type="checkbox" ${p.enabled ? 'checked' : ''}
-          onchange="toggleProvider('${p.id}', this.checked)"> enabled</label>
-        <span class="msg" id="msg-${p.id}"></span>
-      </div>
-    </div>`).join('');
+  const p = d.data.find(x => x.id === 'openrouter') || d.data[0];
+  document.getElementById('orCard').innerHTML = `
+    <div class="row" style="margin-top:0; justify-content:space-between">
+      <strong>${esc(p.label)}</strong>
+      <span class="badge ${p.ready ? 'ok' : 'off'}">${p.ready ? 'ready' : 'no key'}</span>
+    </div>
+    <div class="mono muted small">${esc(p.api_base)}</div>
+    <label>API key ${p.api_key_set ? '(set — ' + p.api_key_source + ')' : ''}
+      · <a href="${esc(p.keys_url)}" target="_blank">get one</a>
+      · or env ${esc(p.api_key_env)}</label>
+    <input type="password" id="orkey" placeholder="${p.api_key_set ? 'saved — paste to replace' : 'sk-or-…'}">
+    <div class="row">
+      <button class="primary" onclick="saveKey()">Save key</button>
+      <button onclick="testProvider()">Test</button>
+      <span class="msg" id="orMsg"></span>
+    </div>`;
+}
+async function saveKey() {
+  const v = document.getElementById('orkey').value.trim();
+  if (!v) return flash('orMsg', false, 'empty');
+  const r = await api('/admin/providers/openrouter', {method: 'PUT', body: JSON.stringify({api_key: v})});
+  flash('orMsg', r.ok, r.ok ? 'saved' : 'error');
+  loadOpenRouter(); loadHealth();
+}
+async function testProvider() {
+  flash('orMsg', true, 'testing…');
+  const d = await (await api('/admin/providers/openrouter/test', {method: 'POST'})).json();
+  flash('orMsg', d.ok, d.ok ? d.models_count + ' models visible' : (d.error || 'failed'));
 }
 
-async function saveKey(pid) {
-  const v = document.getElementById('key-' + pid).value.trim();
-  if (!v) return flash('msg-' + pid, false, 'empty');
-  const r = await api('/admin/providers/' + pid,
-    {method: 'PUT', body: JSON.stringify({api_key: v})});
-  flash('msg-' + pid, r.ok, r.ok ? 'saved' : 'error');
-  loadProviders(); loadHealth();
-}
-async function toggleProvider(pid, on) {
-  await api('/admin/providers/' + pid,
-    {method: 'PUT', body: JSON.stringify({enabled: on})});
-  loadProviders(); loadHealth();
-}
-async function testProvider(pid) {
-  flash('msg-' + pid, true, 'testing…');
-  const d = await (await api('/admin/providers/' + pid + '/test', {method: 'POST'})).json();
-  flash('msg-' + pid, d.ok, d.ok ? d.models_count + ' models visible' : (d.error || 'failed'));
-}
-async function savePriority() {
-  const v = document.getElementById('priority').value.split(',');
-  const r = await api('/admin/priority', {method: 'PUT', body: JSON.stringify({priority: v})});
-  flash('priorityMsg', r.ok, r.ok ? 'saved' : 'error');
-}
-
-function modelOptions(sel) {
-  const names = Object.keys(S.models || {}).sort();
-  return ['<option value="">— unbound —</option>']
-    .concat(names.map(n => `<option value="${esc(n)}" ${n === sel ? 'selected' : ''}>${esc(n)}</option>`))
-    .join('');
-}
-function pinOptions(sel) {
-  return ['', 'openrouter', 'comet'].map(p =>
-    `<option value="${p}" ${p === (sel || '') ? 'selected' : ''}>${p || 'auto'}</option>`).join('');
-}
-
-function renderSettings() {
-  document.getElementById('enabled').checked = !!S.enabled;
-  document.getElementById('settingsMeta').textContent =
-    (S.name || '') + (S.updated ? ' · ' + S.updated : '');
-  const axes = S.axes || [];
-  const bound = axes.filter(a => (a.model || '').trim());
-  // Decider = its own {name, or, comet} setting. Migrate a legacy
-  // decider_model (registry logical) into the fields once, for display.
-  let dec = S.decider;
-  if (!dec || typeof dec !== 'object') {
-    const e = (S.models || {})[S.decider_model] || {};
-    dec = {name: e.name || S.decider_model || '', or: e.or || '', comet: e.comet || ''};
-  }
-  document.getElementById('deciderName').value = dec.name || '';
-  document.getElementById('deciderOr').value = dec.or || '';
-  document.getElementById('deciderComet').value = dec.comet || '';
-  document.getElementById('defaultAxis').innerHTML = bound.map(a =>
-    `<option value="${esc(a.key)}" ${a.key === S.default_axis ? 'selected' : ''}>${esc(a.key)}</option>`).join('');
-  document.getElementById('axes').innerHTML =
-    '<tr><th>axis</th><th>label</th><th>model</th><th>provider</th><th>bench</th></tr>' +
-    axes.map((a, i) => `<tr>
-      <td class="mono">${esc(a.key)}</td>
-      <td>${esc(a.label || '')}</td>
-      <td><select onchange="S.axes[${i}].model=this.value; renderSettings()">${modelOptions(a.model)}</select></td>
-      <td><select onchange="S.axes[${i}].provider=this.value||undefined">${pinOptions(a.provider)}</select></td>
-      <td class="bench">${esc(a.bench || '')}</td>
-    </tr>`).join('');
-  const fields = ['or', 'comet'];
-  document.getElementById('registry').innerHTML =
-    '<tr><th>logical name</th><th>display name</th><th>OpenRouter id</th><th>Comet id</th><th></th></tr>' +
-    Object.keys(S.models || {}).sort().map(n => {
-      const e = S.models[n] || {};
-      return `<tr>
-        <td class="mono">${esc(n)}</td>
-        <td><input value="${esc(e.name || '')}" onchange="S.models['${esc(n)}'].name=this.value"></td>
-        ${fields.map(f => `<td><input class="mono" value="${esc(e[f] || '')}"
-          placeholder="—" onchange="S.models['${esc(n)}']['${f}']=this.value"></td>`).join('')}
-        <td><button onclick="delete S.models['${esc(n)}']; renderSettings()">×</button></td>
-      </tr>`;
-    }).join('');
-}
-
-async function loadSettings() {
-  S = await (await api('/admin/coeos')).json();
-  S.models = S.models || {}; S.axes = S.axes || [];
-  renderSettings();
-}
-async function saveSettings() {
-  S.decider = {name: document.getElementById('deciderName').value.trim(),
-               or: document.getElementById('deciderOr').value.trim(),
-               comet: document.getElementById('deciderComet').value.trim()};
-  S.default_axis = document.getElementById('defaultAxis').value;
-  const r = await api('/admin/coeos', {method: 'PUT', body: JSON.stringify(S)});
-  flash('saveMsg', r.ok, r.ok ? 'saved' : (await r.json()).detail?.message || 'error');
-  loadHealth();
+async function loadArmy() {
+  const d = await (await api('/admin/army')).json();
+  document.getElementById('enabled').checked = !!d.enabled;
+  document.getElementById('armyMeta').textContent =
+    (d.settings || '') + (d.version ? ' · v' + d.version : '') + (d.updated ? ' · ' + d.updated : '');
+  document.getElementById('army').innerHTML =
+    (d.army || []).map(m => `<span class="unit">${esc(m)}</span>`).join('')
+    || '<span class="muted small">No models — import settings.</span>';
 }
 async function toggleEnabled() {
-  const r = await api('/admin/coeos', {method: 'PUT',
-    body: JSON.stringify({enabled: document.getElementById('enabled').checked})});
-  flash('settingsMsg', r.ok, r.ok ? 'saved' : 'error');
-  loadSettings(); loadHealth();
+  const on = document.getElementById('enabled').checked;
+  await api('/admin/coeos', {method: 'PUT', body: JSON.stringify({enabled: on})});
+  loadArmy(); loadHealth();
 }
-function addRegistryRow() {
-  const n = prompt('Logical model name (e.g. glm-5.2):');
-  if (!n || !n.trim()) return;
-  S.models[n.trim()] = {name: n.trim(), or: '', comet: ''};
-  renderSettings();
+
+async function checkUpdate(force) {
+  if (force) flash('updateCheckMsg', true, 'checking…');
+  const d = await (await api('/admin/settings-update' + (force ? '?check=true' : ''))).json();
+  const banner = document.getElementById('updateBanner');
+  banner.classList.toggle('on', !!d.available);
+  if (d.available) {
+    document.getElementById('updateInfo').textContent =
+      'local ' + (d.local_updated || '—') + ' → ' + (d.remote_updated || '—')
+      + (d.remote_name ? ' (' + d.remote_name + ')' : '');
+  }
+  if (force) flash('updateCheckMsg', !d.error,
+    d.error ? d.error : (d.available ? 'update available' : 'up to date'));
 }
-function importSettings() {
-  const f = document.getElementById('importFile');
-  f.onchange = async () => {
-    if (!f.files.length) return;
-    try {
-      const parsed = JSON.parse(await f.files[0].text());
-      const r = await api('/admin/coeos', {method: 'PUT', body: JSON.stringify(parsed)});
-      flash('settingsMsg', r.ok, r.ok ? 'imported' : (await r.json()).detail?.message || 'invalid');
-      loadSettings(); loadHealth();
-    } catch (e) { flash('settingsMsg', false, 'not valid JSON'); }
-    f.value = '';
-  };
-  f.click();
+async function applyUpdate() {
+  flash('updateMsg', true, 'downloading…');
+  const r = await api('/admin/settings-update/apply', {method: 'POST'});
+  const d = await r.json();
+  flash('updateMsg', r.ok, r.ok ? ('updated → ' + d.updated) : (d.detail || 'failed'));
+  if (r.ok) { document.getElementById('updateBanner').classList.remove('on'); loadArmy(); loadHealth(); }
 }
 
 async function clearDecisions() {
@@ -338,16 +226,18 @@ async function clearDecisions() {
   loadDecisions();
 }
 async function loadDecisions() {
+  // Underground: show WHICH models got used, not the axis bindings.
   const d = await (await api('/admin/coeos/decisions')).json();
-  const rows = d.decisions || [];
+  const by = {};
+  for (const r of (d.decisions || [])) by[r.model] = (by[r.model] || 0) + r.count;
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
   document.getElementById('decisions').innerHTML = rows.length
-    ? '<tr><th>model</th><th>axis</th><th>provider</th><th>count</th></tr>' +
-      rows.map(r => `<tr><td class="mono">${esc(r.model)}</td><td class="mono">${esc(r.axis)}</td>
-        <td>${esc(r.provider)}</td><td>${r.count}</td></tr>`).join('')
+    ? '<tr><th>model</th><th>requests</th></tr>' +
+      rows.map(([m, c]) => `<tr><td class="mono">${esc(m)}</td><td>${c}</td></tr>`).join('')
     : '<tr><td class="muted">No routed requests yet.</td></tr>';
 }
 
-loadHealth(); loadProviders(); loadSettings(); loadDecisions();
+loadHealth(); loadOpenRouter(); loadArmy(); loadDecisions(); checkUpdate(false);
 </script>
 </body>
 </html>

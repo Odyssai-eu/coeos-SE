@@ -39,23 +39,29 @@ def test_v1_models_lists_coeos_and_logicals(loaded_client):
     assert coeos["x_coeos"]["axes"]["code"] == "glm"
     glm = next(m for m in d["data"] if m["id"] == "glm")
     assert glm["x_coeos"]["resolvable"] is True
-    assert glm["x_coeos"]["provider"] == "openrouter"
+    assert glm["x_coeos"]["or"] == "z-ai/glm"
 
 
 def test_admin_providers_redacted(loaded_client):
     d = loaded_client.get("/admin/providers").json()
-    text = json.dumps(d)
-    assert "sk-or" not in text and "sk-comet" not in text
-    orp = next(p for p in d["data"] if p["id"] == "openrouter")
+    assert "sk-or" not in json.dumps(d)
+    assert [p["id"] for p in d["data"]] == ["openrouter"]  # single provider
+    orp = d["data"][0]
     assert orp["api_key_set"] is True and orp["api_key_source"] == "config"
 
 
 def test_put_key_and_test_flow(client):
-    r = client.put("/admin/providers/comet", json={"api_key": "sk-x"})
+    r = client.put("/admin/providers/openrouter", json={"api_key": "sk-x"})
     assert r.json()["api_key_set"] is True
-    r = client.put("/admin/providers/comet", json={"clear_api_key": True})
+    r = client.put("/admin/providers/openrouter", json={"clear_api_key": True})
     assert r.json()["api_key_set"] is False
-    assert client.put("/admin/providers/nope", json={}).status_code == 404
+    assert client.put("/admin/providers/comet", json={}).status_code == 404
+
+
+def test_army(loaded_client):
+    d = loaded_client.get("/admin/army").json()
+    assert d["enabled"] is True
+    assert set(d["army"]) == {"GLM", "MM", "Haiku"}  # registry display names
 
 
 def test_import_settings_via_put(client):
@@ -63,7 +69,7 @@ def test_import_settings_via_put(client):
     assert r.status_code == 200
     got = client.get("/admin/coeos").json()
     assert got["name"] == "test settings"
-    assert len(got["axes"]) == 4
+    assert len(got["axes"]) == 3
 
 
 def test_import_rejects_reserved_and_dup(client):
@@ -75,11 +81,34 @@ def test_import_rejects_reserved_and_dup(client):
     assert client.put("/admin/coeos", json=badpin).status_code == 400
 
 
-def test_priority_endpoint(loaded_client):
-    r = loaded_client.put("/admin/priority", json={"priority": ["comet", "openrouter"]})
-    assert r.json()["priority"] == ["comet", "openrouter"]
-    assert loaded_client.put("/admin/priority",
-                             json={"priority": ["azure"]}).status_code == 400
+def test_settings_update_offer_and_apply(loaded_client, monkeypatch):
+    # Remote settings newer than local (2026-07-01) → update offered, then applied.
+    from coeos_se import updates
+
+    async def fake_fetch():
+        return {"name": "remote settings", "updated": "2026-09-01",
+                "enabled": True, "axes": [{"key": "code", "model": "glm"}],
+                "models": {"glm": {"name": "GLM", "or": "z-ai/glm"}}}
+    monkeypatch.setattr(updates, "_fetch_remote", fake_fetch)
+
+    st = loaded_client.get("/admin/settings-update?check=true").json()
+    assert st["available"] is True and st["remote_updated"] == "2026-09-01"
+
+    ap = loaded_client.post("/admin/settings-update/apply").json()
+    assert ap["ok"] is True and ap["updated"] == "2026-09-01"
+    assert loaded_client.get("/admin/coeos").json()["name"] == "remote settings"
+    # provider key survived the update
+    assert loaded_client.get("/admin/providers").json()["data"][0]["api_key_set"] is True
+
+
+def test_settings_update_up_to_date(loaded_client, monkeypatch):
+    from coeos_se import updates
+
+    async def fake_fetch():
+        return {"name": "same", "updated": "2026-07-01"}  # == local
+    monkeypatch.setattr(updates, "_fetch_remote", fake_fetch)
+    st = loaded_client.get("/admin/settings-update?check=true").json()
+    assert st["available"] is False
 
 
 def test_chat_unknown_model_404(client):
