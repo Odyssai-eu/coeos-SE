@@ -41,6 +41,22 @@ def _by_key(axes):
     return {a["key"]: a for a in axes}
 
 
+def test_matches_via_registry_or_id_when_key_is_slugified():
+    """The real-world case (caught live on .21:4600, 2026-07-14): the SE
+    settings generator SLUGIFIES display names into registry keys
+    ("RING2.6 OR" -> "ring2.6-or"), so the key essentially never equals a
+    table row's own name — only the registry entry's OWN `or` id does. A
+    join that only tries the key (the original bug) resolves nothing."""
+    registry = {"aion3-or": {"name": "aion3 OR", "or": "aion-labs/aion-3.0"},
+                "nemotron3-super-or": {"name": "nemotron3 super OR",
+                                       "or": "nvidia/nemotron-3-ultra-550b-a55b"}}
+    out = _by_key(resolve_score_table(TABLE, registry))
+    # the axis binds the REGISTRY KEY (what resolve_logical looks up), not
+    # the table's row name — the row name is benchmark labeling only.
+    assert out["calc"]["model"] == "nemotron3-super-or"
+    assert out["reasoning"]["model"] == "nemotron3-super-or"
+
+
 def test_best_score_wins():
     # calc: nemotron3 (95.0) beats aion3 (80.0) — no tie here.
     registry = {"aion3 OR": {"name": "aion3", "or": "aion-labs/aion-3.0"},

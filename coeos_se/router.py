@@ -85,8 +85,15 @@ def resolve_score_table(table: dict, registry: dict) -> list[dict]:
     out = []
     for axis_key, meta in axes_meta.items():
         best = None
-        for logical in registry:
+        for logical, entry in registry.items():
+            # Try the registry KEY first, then the entry's own canonical
+            # upstream id (the "or" field). The key is usually a SLUGIFIED
+            # display name (e.g. "RING2.6 OR" -> "ring2.6-or") that rarely
+            # matches a table row's own name verbatim — the canonical id is
+            # the join that actually holds across differently-named configs.
             row = lut.get(str(logical).strip().lower())
+            if not row and isinstance(entry, dict) and entry.get(_OR_FIELD):
+                row = lut.get(str(entry[_OR_FIELD]).strip().lower())
             if not row:
                 continue
             m = (table.get("models") or {}).get(row) or {}
