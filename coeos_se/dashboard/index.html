@@ -32,10 +32,11 @@
   .badge.ok { color: var(--ok); border-color: var(--ok); }
   .badge.off { color: var(--muted); }
   label { color: var(--muted); font-size: 12px; display: block; margin: 8px 0 3px; }
-  input[type=text], input[type=password] {
+  input[type=text], input[type=password], textarea, select {
     width: 100%; background: var(--bg); color: var(--text); padding: 6px 9px;
     border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono);
     font-size: 13px; }
+  textarea { resize: vertical; min-height: 90px; }
   button { background: #21262d; color: var(--text); border: 1px solid var(--border);
            border-radius: 6px; padding: 6px 13px; cursor: pointer; font-size: 13px; }
   button:hover { border-color: var(--accent); }
@@ -104,6 +105,30 @@
     <div class="sub small" style="margin-top:12px">The models CoeOS fields for you.
       Which skill routes to which is decided from the TMB benchmarks — and kept
       under the hood.</div>
+  </div>
+
+  <h2>TMB Settings File</h2>
+  <div class="panel">
+    <label style="margin-top:0">Paste a TMB Score Table (or a settings file) — auto-detected</label>
+    <textarea id="tmbFile" placeholder='{"format": "tmb-score-table/1", …}'></textarea>
+    <div class="row">
+      <button class="primary" onclick="importTmbFile()">Import</button>
+      <span class="sub small">A score table is resolved once per axis against
+        the models below (best score, ties broken by cost) — re-import after
+        changing your army to re-resolve.</span>
+      <span class="msg" id="tmbFileMsg"></span>
+    </div>
+    <div class="row" style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border)">
+      <input type="text" id="cfgName" placeholder="config name" style="max-width:220px">
+      <button onclick="saveNamedConfig()">Save current as…</button>
+      <span class="msg" id="cfgSaveMsg"></span>
+    </div>
+    <div class="row">
+      <select id="cfgPick" style="max-width:220px"><option value="">— saved configs —</option></select>
+      <button onclick="loadNamedConfig()">Load</button>
+      <button onclick="deleteNamedConfig()">Delete</button>
+      <span class="msg" id="cfgLoadMsg"></span>
+    </div>
   </div>
 
   <h2>Requests routed</h2>
@@ -220,6 +245,51 @@ async function applyUpdate() {
   if (r.ok) { document.getElementById('updateBanner').classList.remove('on'); loadArmy(); loadHealth(); }
 }
 
+async function importTmbFile() {
+  const raw = document.getElementById('tmbFile').value.trim();
+  if (!raw) return flash('tmbFileMsg', false, 'paste a file first');
+  let body;
+  try { body = JSON.parse(raw); }
+  catch (e) { return flash('tmbFileMsg', false, 'invalid JSON: ' + e.message); }
+  const r = await api('/admin/coeos', {method: 'PUT', body: JSON.stringify(body)});
+  const d = await r.json().catch(() => ({}));
+  flash('tmbFileMsg', r.ok, r.ok
+    ? ('imported' + (d.axes ? ' — ' + d.axes.length + ' axes' : ''))
+    : ((d.detail && d.detail.message) || 'import failed'));
+  if (r.ok) { loadArmy(); loadHealth(); }
+}
+
+async function loadConfigsList() {
+  const d = await (await api('/admin/coeos/configs')).json();
+  const sel = document.getElementById('cfgPick');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— saved configs —</option>'
+    + (d.configs || []).map(n => `<option>${esc(n)}</option>`).join('');
+  if ((d.configs || []).includes(cur)) sel.value = cur;
+}
+async function saveNamedConfig() {
+  const name = document.getElementById('cfgName').value.trim();
+  if (!name) return flash('cfgSaveMsg', false, 'name required');
+  const r = await api('/admin/coeos/configs/save', {method: 'POST', body: JSON.stringify({name})});
+  const d = await r.json().catch(() => ({}));
+  flash('cfgSaveMsg', r.ok, r.ok ? ('saved as ' + d.name) : 'save failed');
+  if (r.ok) { document.getElementById('cfgName').value = ''; loadConfigsList(); }
+}
+async function loadNamedConfig() {
+  const name = document.getElementById('cfgPick').value;
+  if (!name) return flash('cfgLoadMsg', false, 'pick a config');
+  const r = await api('/admin/coeos/configs/load', {method: 'POST', body: JSON.stringify({name})});
+  flash('cfgLoadMsg', r.ok, r.ok ? ('loaded ' + name) : 'load failed');
+  if (r.ok) { loadArmy(); loadHealth(); }
+}
+async function deleteNamedConfig() {
+  const name = document.getElementById('cfgPick').value;
+  if (!name) return flash('cfgLoadMsg', false, 'pick a config');
+  const r = await api('/admin/coeos/configs/' + encodeURIComponent(name), {method: 'DELETE'});
+  flash('cfgLoadMsg', r.ok, r.ok ? ('deleted ' + name) : 'delete failed');
+  if (r.ok) loadConfigsList();
+}
+
 async function clearDecisions() {
   const r = await api('/admin/coeos/decisions', {method: 'DELETE'});
   flash('decisionsMsg', r.ok, r.ok ? 'cleared' : 'error');
@@ -237,7 +307,7 @@ async function loadDecisions() {
     : '<tr><td class="muted">No routed requests yet.</td></tr>';
 }
 
-loadHealth(); loadOpenRouter(); loadArmy(); loadDecisions(); checkUpdate(false);
+loadHealth(); loadOpenRouter(); loadArmy(); loadDecisions(); loadConfigsList(); checkUpdate(false);
 </script>
 </body>
 </html>

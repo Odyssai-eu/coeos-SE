@@ -4,11 +4,16 @@ Endpoint map (OpenRouter-only):
   POST /v1/chat/completions   the OpenAI surface (model:"coeos" | logical | or:<id>)
   POST /v1/messages           the Anthropic surface (Claude Code)
   GET  /v1/models             CoeOS + the registry's logical models
-  GET/PUT /admin/coeos        read / import the TMB Settings (routing table, underground)
+  GET/PUT /admin/coeos        read / import the TMB Settings OR a TMB Score
+                              Table (routing table, underground) — a score
+                              table is auto-detected (format marker) and
+                              resolved once, per-axis, against the current
+                              registry
   GET  /admin/army            the model roster (display names only)
   GET  /admin/settings-update  update status (?check=true to poll GitHub now)
   POST /admin/settings-update/apply  download + apply the latest settings
   GET  /admin/coeos/decisions routing decision counters
+  GET/POST/DELETE /admin/coeos/configs  named config snapshots (save/load/delete)
   GET  /admin/providers       redacted OpenRouter view (never returns the key)
   PUT  /admin/providers/openrouter  set/clear the key
   GET  /dashboard             single-file web UI
@@ -32,13 +37,14 @@ from fastapi.responses import (FileResponse, JSONResponse, RedirectResponse,
 from pydantic import BaseModel
 
 from . import __version__, anthropic_api, proxy, router, updates
-from .config import config_txn, load_config
+from .config import (config_txn, delete_named_config, list_saved_configs,
+                     load_config, load_named_config, save_named_config)
 from .providers import (PREFIX_TO_PROVIDER, PROVIDER_ID, PROVIDERS,
                         list_upstream_models, provider_key, ready_providers,
                         redact_provider)
 from .router import (COEOS_DISPLAY_ID, COEOS_MODEL_ID, bound_axes, coeos_cfg,
                      coeos_resolve, decider_spec, decisions, registry_of,
-                     resolve_logical)
+                     resolve_logical, resolve_score_table)
 
 _BUNDLED_SETTINGS = "TMB-Settings-SE.json"
 
@@ -305,6 +311,11 @@ class CoeosSettings(BaseModel):
     default_axis: Optional[str] = None
     axes: Optional[list] = None
     models: Optional[dict] = None
+    score_table: Optional[dict] = None    # provenance only (2026-07-14): the
+        # raw TMB Score Table that produced `axes` via a one-time resolve at
+        # import — NOT consulted live by the router. Kept so a saved config
+        # can be re-resolved later (e.g. after the registry changes) without
+        # re-uploading the file.
 
 
 def _validate_axes(axes: list) -> None:
@@ -337,9 +348,37 @@ async def admin_coeos_get():
 
 
 @app.put("/admin/coeos")
-async def admin_coeos_update(req: CoeosSettings):
-    """Importing a TMB Settings file = a PUT with the file's JSON. Partial
-    updates supported (only non-None fields are applied)."""
+async def admin_coeos_update(request: Request):
+    """Importing a TMB Settings file = a PUT with the file's JSON. A TMB
+    SCORE TABLE (format: tmb-score-table/1) is auto-detected and resolved
+    ONCE into axes=[{key,label,model,description}] against the CURRENT
+    registry (best score per axis, reference-role rows excluded, ties
+    broken by cost) — the raw table then travels along as `score_table` for
+    provenance/re-resolve, but the router only ever reads the resolved
+    `axes`. Partial updates supported (only non-None fields are applied)."""
+    raw = await request.json()
+    if not isinstance(raw, dict):
+        raise HTTPException(400, detail={"error": "bad_body",
+            "message": "expected a JSON object."})
+    # Score table, unwrapped (the natural "drop this file in" gesture) OR
+    # wrapped as {"score_table": {...}} — both resolve identically. Checking
+    # BOTH matters: only checking top-level `format` would silently skip the
+    # resolve step for the wrapped form (it'd just store an inert table with
+    # axes left unresolved).
+    table = raw if raw.get("format") == "tmb-score-table/1" else (
+        raw.get("score_table") if isinstance(raw.get("score_table"), dict)
+        and raw["score_table"].get("format") == "tmb-score-table/1" else None)
+    if table is not None:
+        registry = registry_of(coeos_cfg(load_config()))
+        resolved_axes = resolve_score_table(table, registry)
+        raw = {"name": table.get("source") or "TMB Score Table",
+               "updated": table.get("updated"), "axes": resolved_axes,
+               "score_table": table}
+    try:
+        req = CoeosSettings(**raw)
+    except Exception as e:
+        raise HTTPException(422, detail={"error": "bad_coeos_config",
+            "message": f"could not parse CoeOS config: {e}"})
     if req.axes is not None:
         _validate_axes(req.axes)
     if req.models is not None and not isinstance(req.models, dict):
@@ -353,7 +392,8 @@ async def admin_coeos_update(req: CoeosSettings):
     with config_txn() as cfg:
         c = cfg.get("coeos") or {}
         for field in ("enabled", "name", "regime", "updated", "note",
-                      "decider", "decider_model", "default_axis", "axes", "models"):
+                      "decider", "decider_model", "default_axis", "axes", "models",
+                      "score_table"):
             val = getattr(req, field)
             if val is not None:
                 c[field] = bool(val) if field == "enabled" else val
@@ -375,14 +415,48 @@ async def admin_coeos_decisions_clear():
     return {"ok": True, "decisions": []}
 
 
-@app.get("/admin/coeos/export")
-async def admin_coeos_export():
-    c = coeos_cfg(load_config())
-    return Response(
-        content=json.dumps(c, indent=2, ensure_ascii=False),
-        media_type="application/json",
-        headers={"content-disposition":
-                 'attachment; filename="TMB-Settings-export.json"'})
+# ── Admin: named config snapshots (save/load/delete) ────────────────────────
+
+class ConfigName(BaseModel):
+    name: str
+
+
+@app.get("/admin/coeos/configs")
+async def admin_coeos_configs_list():
+    return {"configs": list_saved_configs()}
+
+
+@app.post("/admin/coeos/configs/save")
+async def admin_coeos_configs_save(req: ConfigName):
+    if not req.name.strip():
+        raise HTTPException(400, detail={"error": "bad_name",
+            "message": "name required."})
+    safe = save_named_config(req.name, coeos_cfg(load_config()))
+    return {"ok": True, "name": safe}
+
+
+@app.post("/admin/coeos/configs/load")
+async def admin_coeos_configs_load(req: ConfigName):
+    """Load = REPLACE the active coeos config wholesale (not a merge like a
+    settings/score-table import) — restoring a saved snapshot means getting
+    back exactly what was saved, not layering it on top of whatever is
+    currently active."""
+    try:
+        blob = load_named_config(req.name)
+    except FileNotFoundError:
+        raise HTTPException(404, detail={"error": "not_found",
+            "message": f"no saved config named {req.name!r}."})
+    with config_txn() as cfg:
+        cfg["coeos"] = blob
+    return coeos_cfg(load_config())
+
+
+@app.delete("/admin/coeos/configs/{name}")
+async def admin_coeos_configs_delete(name: str):
+    if not delete_named_config(name):
+        raise HTTPException(404, detail={"error": "not_found",
+            "message": f"no saved config named {name!r}."})
+    return {"ok": True}
 
 
 # ── Admin: providers (keys only — that's the whole setup) ───────────────────

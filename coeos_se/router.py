@@ -57,6 +57,54 @@ def registry_of(c: dict) -> dict:
     return reg if isinstance(reg, dict) else {}
 
 
+def _score_table_lookup(table: dict) -> dict[str, str]:
+    """row-identity (name/alias/or_id/served_model, lowercased) -> row name."""
+    out: dict[str, str] = {}
+    for name, m in (table.get("models") or {}).items():
+        if not isinstance(m, dict):
+            continue
+        for key in (name, m.get("alias"), m.get("or_id"), m.get("served_model")):
+            if key:
+                out[str(key).strip().lower()] = name
+    return out
+
+
+def resolve_score_table(table: dict, registry: dict) -> list[dict]:
+    """One-time resolve: for each axis in the score-table's taxonomy, pick the
+    best-scoring model restricted to what THIS operator's registry can serve
+    (their 'army' — no separate fleet declaration). Reference-role rows (our
+    benchmark etalons) are never picked. Tie on score -> cheaper wins (unknown
+    cost sorts last). Unlike OdyssAI-X's live resolver, SE resolves ONCE at
+    import time and writes a normal axes=[{key,label,model,description}] list
+    — the router stays the simple pre-decided-binding lookup it already is;
+    only the IMPORT source changed from a pre-baked settings file to the raw
+    score table. Re-import (or a future 're-resolve') to pick up registry
+    changes."""
+    lut = _score_table_lookup(table)
+    axes_meta = table.get("axes") or {}
+    out = []
+    for axis_key, meta in axes_meta.items():
+        best = None
+        for logical in registry:
+            row = lut.get(str(logical).strip().lower())
+            if not row:
+                continue
+            m = (table.get("models") or {}).get(row) or {}
+            if m.get("role") == "reference":
+                continue
+            score = ((m.get("axes") or {}).get(axis_key) or {}).get("score")
+            if score is None:
+                continue
+            cost = m.get("cost_per_test")
+            sort_key = (-score, cost is None, cost if cost is not None else 0.0, str(logical))
+            if best is None or sort_key < best[0]:
+                best = (sort_key, logical)
+        out.append({"key": axis_key, "label": (meta or {}).get("label", axis_key),
+                    "description": (meta or {}).get("description", ""),
+                    "model": best[1] if best else ""})
+    return out
+
+
 def decider_spec(c: dict) -> dict | None:
     """The decider's own setting: {name, or} — its display name and OpenRouter
     id, independent of the axis registry.

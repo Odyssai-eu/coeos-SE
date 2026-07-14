@@ -72,6 +72,95 @@ def test_import_settings_via_put(client):
     assert len(got["axes"]) == 3
 
 
+def test_configs_save_load_delete_roundtrip(client):
+    client.put("/admin/coeos", json=BASE_SETTINGS)
+    assert client.get("/admin/coeos/configs").json()["configs"] == []
+
+    r = client.post("/admin/coeos/configs/save", json={"name": "known-good"})
+    assert r.status_code == 200
+    assert client.get("/admin/coeos/configs").json()["configs"] == ["known-good"]
+
+    # change the active config — different name, fewer axes.
+    client.put("/admin/coeos", json={"name": "experiment", "axes": [
+        {"key": "x", "model": "y"}]})
+    assert client.get("/admin/coeos").json()["name"] == "experiment"
+
+    # load = REPLACE wholesale, not a merge on top of "experiment".
+    r = client.post("/admin/coeos/configs/load", json={"name": "known-good"})
+    assert r.status_code == 200
+    got = client.get("/admin/coeos").json()
+    assert got["name"] == "test settings"
+    assert len(got["axes"]) == 3
+
+    r = client.delete("/admin/coeos/configs/known-good")
+    assert r.status_code == 200
+    assert client.get("/admin/coeos/configs").json()["configs"] == []
+
+
+def test_configs_load_missing_404s(client):
+    r = client.post("/admin/coeos/configs/load", json={"name": "nope"})
+    assert r.status_code == 404
+
+
+def test_configs_delete_missing_404s(client):
+    assert client.delete("/admin/coeos/configs/nope").status_code == 404
+
+
+def test_configs_save_sanitizes_name(client):
+    client.put("/admin/coeos", json=BASE_SETTINGS)
+    r = client.post("/admin/coeos/configs/save", json={"name": "a b/c!!"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "a-b-c"
+    assert "a-b-c" in client.get("/admin/coeos/configs").json()["configs"]
+
+
+def test_import_raw_score_table_reproduces_sophies_bug_then_fixed(client):
+    """PUT the score-table file UNWRAPPED (the natural 'drop this file in'
+    gesture Sophie used 2026-07-14) — this used to 422 on `axes` (dict, not
+    the settings shape's list). Now it's auto-detected and resolved once
+    against the current registry into a normal axes=list."""
+    # registry first (the "army" this operator can actually route to) — the
+    # score table's own top-level `models` field is DATA, not a registry.
+    client.put("/admin/coeos", json={"models": {
+        "aion3 OR": {"name": "aion3", "or": "aion-labs/aion-3.0"},
+        "nemotron3 super OR": {"name": "nemo", "or": "nvidia/x"},
+    }})
+    table = {
+        "format": "tmb-score-table/1", "source": "TMB", "updated": "2026-07-14",
+        "axes": {"reasoning": {"label": "Reasoning", "description": "logic"}},
+        "models": {
+            "aion3 OR": {"role": "contender", "cost_per_test": 0.05,
+                        "axes": {"reasoning": {"score": 80.0}}},
+            "nemotron3 super OR": {"role": "contender", "cost_per_test": 0.0,
+                                   "axes": {"reasoning": {"score": 95.0}}},
+        },
+    }
+    r = client.put("/admin/coeos", json=table)
+    assert r.status_code == 200, r.text
+    got = client.get("/admin/coeos").json()
+    assert got["axes"] == [{"key": "reasoning", "label": "Reasoning",
+                            "description": "logic", "model": "nemotron3 super OR"}]
+    # provenance kept, router still reads plain axes (unchanged behaviour)
+    assert got["score_table"]["format"] == "tmb-score-table/1"
+
+
+def test_import_wrapped_score_table_still_resolves(client):
+    """{"score_table": {...}} (the original wrapping convention) ALSO
+    triggers the one-time resolve — not just gets stored inert (a real bug
+    caught here: checking only the top-level `format` key would silently
+    skip resolution for this wrapped form)."""
+    client.put("/admin/coeos", json={"models": {
+        "aion3 OR": {"name": "aion3", "or": "aion-labs/aion-3.0"}}})
+    table = {"format": "tmb-score-table/1", "axes": {"calc": {"label": "Calc"}},
+             "models": {"aion3 OR": {"role": "contender", "cost_per_test": 0.01,
+                                     "axes": {"calc": {"score": 70.0}}}}}
+    r = client.put("/admin/coeos", json={"score_table": table})
+    assert r.status_code == 200, r.text
+    got = client.get("/admin/coeos").json()
+    assert got["axes"] == [{"key": "calc", "label": "Calc", "description": "",
+                            "model": "aion3 OR"}]
+
+
 def test_import_rejects_reserved_and_dup(client):
     bad = {"axes": [{"key": "a", "model": "coeos"}]}
     assert client.put("/admin/coeos", json=bad).status_code == 400
@@ -144,10 +233,3 @@ def test_auth_middleware(loaded_client, monkeypatch):
     assert ok2.status_code == 200
     # /health and /dashboard stay open
     assert loaded_client.get("/health").status_code == 200
-
-
-def test_export_download(loaded_client):
-    r = loaded_client.get("/admin/coeos/export")
-    assert r.status_code == 200
-    assert "attachment" in r.headers["content-disposition"]
-    assert json.loads(r.text)["name"] == "test settings"
