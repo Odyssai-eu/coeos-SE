@@ -75,9 +75,8 @@ You can also bypass the router: call a logical model directly
 
 ## The TMB Settings — routing as data
 
-The taxonomy and bindings live entirely in a JSON file you can import/export
-from the dashboard — nothing is hard-coded. Each axis carries its benchmark
-provenance:
+The taxonomy and bindings live entirely in a JSON file — nothing is
+hard-coded. Each axis carries its benchmark provenance:
 
 ```json
 {
@@ -90,9 +89,18 @@ provenance:
 }
 ```
 
-The bundled snapshot is **dated and frozen** (`v0.1`, 15 axes). Models move
-monthly; the table is regenerated from our benchmark scoreboards roughly once a
-month — sooner when a notable new model lands. Watch the repo for updates.
+Settings ship **exclusively from this repo** (the canonical
+`coeos_se/settings/TMB-Settings-SE.json` on `main`) — no manual import. The
+dashboard shows the running snapshot and offers **Update from GitHub** when a
+newer one lands; CoeOS SE also polls daily and surfaces the offer (never
+applies silently).
+
+The current snapshot binds **18 skill axes**, scored by the TMB benchmark
+panel (30+ models, 5 bench suites) under a hardened judging protocol: the
+judge scores each grading criterion in isolation (**notes-only**) and the
+harness computes every total **mechanically** — no LLM ever writes a verdict
+or adds numbers. Models move monthly; the table is regenerated when the panel
+does. Watch the repo for updates.
 
 Adding an axis = adding a JSON entry. Five axes or fifty, same engine.
 
