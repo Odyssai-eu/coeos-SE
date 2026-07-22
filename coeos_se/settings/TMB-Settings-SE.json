@@ -1,34 +1,54 @@
 {
-  "enabled": true,
   "name": "TMB Settings — 100% Cloud (best-of-all) · SE",
   "regime": "cloud",
-  "updated": "2026-07-14",
-  "note": "Généré par l'onglet TMB Settings (bench runner) le 2026-07-14 depuis les évaluations A/C/P/T (juge fixe Hy3 Q6 local). Règle cloud : best-of-all par axe (modèles cloud). Variante SE : chaque modèle logique mappe son id OpenRouter natif.",
+  "updated": "2026-07-22",
+  "note": "Généré par l'onglet TMB Settings (bench runner) le 2026-07-22 depuis les évaluations A/C/P/T (juge fixe Hy3 Q6 local). Règle cloud : best-of-all par axe (modèles cloud). Variante SE : chaque modèle logique mappe son id OpenRouter natif.",
   "decider_model": "",
   "default_axis": "code_general",
   "models": {
-    "nex-n2-pro-or": {
-      "name": "Nex N2 pro OR",
+    "kimi-k3-or": {
+      "name": "Kimi-K3-OR",
+      "or": "moonshotai/kimi-k3",
       "kind": "cloud"
     },
-    "deepseek-v4-flash-or": {
-      "name": "deepseek v4 flash OR",
-      "kind": "cloud"
-    },
-    "mimo2.5-xi": {
-      "name": "mimo2.5 XI",
+    "deepseek-v4-pro-or": {
+      "name": "deepseek v4 pro OR",
+      "or": "deepseek/deepseek-v4-pro",
       "kind": "cloud"
     },
     "ring2.6-or": {
       "name": "RING2.6 OR",
+      "or": "inclusionai/ring-2.6-1t",
+      "kind": "cloud"
+    },
+    "minimax3-mi": {
+      "name": "minimax3 MI",
+      "or": "minimax/minimax-m3",
       "kind": "cloud"
     },
     "kimi-2.7-or": {
       "name": "KIMI 2.7 OR",
+      "or": "moonshotai/kimi-k2.7-code",
       "kind": "cloud"
     },
-    "step3.7flash-or": {
-      "name": "step3.7flash OR",
+    "o3-or": {
+      "name": "o3-OR",
+      "or": "openai/o3",
+      "kind": "cloud"
+    },
+    "mercury-2-or": {
+      "name": "mercury-2-OR",
+      "or": "inception/mercury-2",
+      "kind": "cloud"
+    },
+    "kimi-k2.6-or": {
+      "name": "kimi-k2.6-OR",
+      "or": "moonshotai/kimi-k2.6",
+      "kind": "cloud"
+    },
+    "mistral-l3-or": {
+      "name": "mistral L3 OR",
+      "or": "mistralai/mistral-large-2512",
       "kind": "cloud"
     }
   },
@@ -36,10 +56,10 @@
     {
       "key": "creative",
       "label": "Créatif / rédaction longue",
-      "model": "nex-n2-pro-or",
+      "model": "kimi-k3-or",
       "description": "Rédaction longue en langage naturel : récit, article, marketing, storytelling, réécriture stylistique, contenu créatif. Pas ici si le livrable est du code (→ axes code) ou une spec/handoff structuré (→ plan_spec).",
       "bench": {
-        "score": 61.4,
+        "score": 97.8,
         "coverage": 1.0,
         "n_tests": 1,
         "source": "TMB"
@@ -49,10 +69,10 @@
     {
       "key": "redac_pro",
       "label": "Rédaction pro / business",
-      "model": "deepseek-v4-flash-or",
+      "model": "deepseek-v4-pro-or",
       "description": "Rédaction professionnelle structurée destinée à une décision ou une communication : note de synthèse, recommandation, rapport, argumentaire COMEX, document corporate. Pas ici si c'est de la fiction (→ creative) ou une spec technique pour un exécutant (→ plan_spec).",
       "bench": {
-        "score": 98.0,
+        "score": 100.0,
         "coverage": 1.0,
         "n_tests": 1,
         "source": "TMB"
@@ -62,7 +82,7 @@
     {
       "key": "legal_rgpd",
       "label": "RGPD / conformité",
-      "model": "mimo2.5-xi",
+      "model": "kimi-k3-or",
       "description": "Conformité RGPD / protection des données / vie privée en droit européen : analyse de traitements, DPA, mentions légales, registre, bases légales. Pas ici si la question juridique dépasse le RGPD ou couvre plusieurs juridictions (→ legal_complex).",
       "bench": {
         "score": 100.0,
@@ -75,10 +95,10 @@
     {
       "key": "legal_complex",
       "label": "Conformité multi-jur.",
-      "model": "nex-n2-pro-or",
+      "model": "ring2.6-or",
       "description": "Analyse juridique complexe ou multi-juridictionnelle : contrats, conformité hors-RGPD, comparaison de droits, raisonnement légal nuancé. Pas ici si c'est strictement RGPD/données personnelles (→ legal_rgpd).",
       "bench": {
-        "score": 100.0,
+        "score": 99.0,
         "coverage": 1.0,
         "n_tests": 1,
         "source": "TMB"
@@ -88,7 +108,7 @@
     {
       "key": "reasoning",
       "label": "Raisonnement / logique",
-      "model": "nex-n2-pro-or",
+      "model": "deepseek-v4-pro-or",
       "description": "Raisonnement pur, logique, déduction, énigmes, analyse argumentée non-juridique et non-calculatoire. Pas ici si la réponse repose sur du calcul numérique/structuré (→ calc) ou si le livrable est du code (→ axes code).",
       "bench": {
         "score": 100.0,
@@ -101,7 +121,7 @@
     {
       "key": "calc",
       "label": "Calcul / structuré",
-      "model": "nex-n2-pro-or",
+      "model": "deepseek-v4-pro-or",
       "description": "Calcul numérique, mathématiques, manipulation de données structurées, tableurs, conversions, estimations chiffrées. Pas ici si le raisonnement est qualitatif (→ reasoning) ou si on écrit un script qui calcule (→ python).",
       "bench": {
         "score": 100.0,
@@ -114,10 +134,10 @@
     {
       "key": "python",
       "label": "Python / scripts",
-      "model": "ring2.6-or",
+      "model": "kimi-k3-or",
       "description": "Tâche dont le livrable est du code Python : scripts, data, automatisation, ML, backend Python. Choisir cet axe dès que le langage cible est Python. Pas ici si c'est un autre langage (→ code_general / swift / react).",
       "bench": {
-        "score": 100.0,
+        "score": 97.8,
         "coverage": 1.0,
         "n_tests": 4,
         "source": "TMB"
@@ -127,12 +147,12 @@
     {
       "key": "code_general",
       "label": "Code général",
-      "model": "nex-n2-pro-or",
+      "model": "kimi-k3-or",
       "description": "Code applicatif dans un langage SANS axe dédié (Go, Rust, Java, C/C++, JS/TS backend, shell…). Seau par défaut : ne PAS choisir si la tâche est en Swift (→ swift), Python (→ python), ou front React (→ react). À n'utiliser QUE si aucun axe de langage spécifique ne s'applique.",
       "bench": {
-        "score": 98.3,
-        "coverage": 0.9,
-        "n_tests": 9,
+        "score": 97.9,
+        "coverage": 1.0,
+        "n_tests": 10,
         "source": "TMB"
       },
       "verified": true
@@ -140,7 +160,7 @@
     {
       "key": "debug",
       "label": "Debug",
-      "model": "nex-n2-pro-or",
+      "model": "deepseek-v4-pro-or",
       "description": "Diagnostic et correction d'un bug dans du code existant : stack trace, comportement inattendu, test qui casse, régression. Choisir cet axe quand l'intention est RÉPARER/COMPRENDRE un défaut, quel que soit le langage. Pas ici si on écrit du code neuf (→ axe du langage) ou si on restructure du code sain (→ refactoring).",
       "bench": {
         "score": 100.0,
@@ -153,10 +173,10 @@
     {
       "key": "react",
       "label": "React / front",
-      "model": "nex-n2-pro-or",
+      "model": "deepseek-v4-pro-or",
       "description": "Front-end web : React, JSX/TSX, composants UI, hooks, état client, Next.js, styling. Pas ici si c'est du backend JS/TS (→ code_general) ou du natif Apple (→ swift).",
       "bench": {
-        "score": 100.0,
+        "score": 98.0,
         "coverage": 1.0,
         "n_tests": 1,
         "source": "TMB"
@@ -166,10 +186,10 @@
     {
       "key": "swift",
       "label": "Swift",
-      "model": "kimi-2.7-or",
+      "model": "kimi-k3-or",
       "description": "Tâche dont le livrable est du code Swift : SwiftUI, AppKit/UIKit, app macOS/iOS native, Swift Package, Xcode, async/await Swift, ArgumentParser, CLI Swift. Choisir CET axe dès que le langage cible est Swift, MÊME si la tâche ressemble par ailleurs à du code général ou à un CLI. Le langage prime sur la forme de la tâche.",
       "bench": {
-        "score": 98.0,
+        "score": 99.0,
         "coverage": 1.0,
         "n_tests": 2,
         "source": "TMB"
@@ -179,7 +199,7 @@
     {
       "key": "refactoring",
       "label": "Refactoring",
-      "model": "mimo2.5-xi",
+      "model": "minimax3-mi",
       "description": "Restructuration de code SAIN sans changer son comportement : extraire, renommer, dédupliquer, moderniser, améliorer la lisibilité/l'archi. Pas ici si on corrige un bug (→ debug) ou si on écrit une fonctionnalité neuve (→ axe du langage).",
       "bench": {
         "score": 100.0,
@@ -192,7 +212,7 @@
     {
       "key": "plan_decompo",
       "label": "Planning — décomposition",
-      "model": "nex-n2-pro-or",
+      "model": "kimi-2.7-or",
       "description": "Décomposition d'un objectif en sous-tâches/étapes : découper un projet, créer un backlog, séquencer le travail. Pas ici si on rédige une spec détaillée pour un exécutant (→ plan_spec) ou si on évalue les risques/pièges d'un plan (→ plan_judgment).",
       "bench": {
         "score": 100.0,
@@ -205,7 +225,7 @@
     {
       "key": "plan_spec",
       "label": "Planning — handoff / spec",
-      "model": "nex-n2-pro-or",
+      "model": "o3-or",
       "description": "Rédaction d'une spécification, d'un handoff, d'un cahier des charges détaillé destiné à un exécutant (humain ou agent) : critères de done, contrat d'interface, doc d'implémentation. Pas ici si on découpe juste en étapes (→ plan_decompo) ou si on juge un plan (→ plan_judgment).",
       "bench": {
         "score": 100.0,
@@ -218,7 +238,7 @@
     {
       "key": "plan_judgment",
       "label": "Planning — jugement / pièges",
-      "model": "nex-n2-pro-or",
+      "model": "kimi-k3-or",
       "description": "Jugement critique d'un plan ou d'une décision : repérer les pièges, arbitrer entre options, évaluer les risques, faire un red-team. Pas ici si on décompose (→ plan_decompo) ou si on rédige la spec (→ plan_spec).",
       "bench": {
         "score": 100.0,
@@ -231,7 +251,7 @@
     {
       "key": "fast_tools",
       "label": "Tools & fast coding",
-      "model": "step3.7flash-or",
+      "model": "mercury-2-or",
       "description": "Appels d'outils rapides, complétions courtes à faible latence, edits triviaux, tool-calling en boucle d'agent où la VITESSE prime sur la profondeur. Choisir cet axe quand la tâche est petite/mécanique et doit être servie vite, pas quand elle demande une vraie réflexion (→ axe de compétence correspondant).",
       "bench": {
         "score": 100.0,
@@ -244,10 +264,10 @@
     {
       "key": "agent_exec",
       "label": "Agent — exécution outillée",
-      "model": "nex-n2-pro-or",
+      "model": "kimi-k2.6-or",
       "description": "Discipline d'exécution d'un agent outillé : bonne sélection et séquence de tools, reproduire avant de corriger, localiser par preuve, vérifier après action, cohérence multi-étapes. Pas ici si la tâche est du code pur hors boucle d'outils (→ axes code) ou du jugement de sûreté (→ agent_safety).",
       "bench": {
-        "score": 98.4,
+        "score": 100.0,
         "coverage": 1.0,
         "n_tests": 5,
         "source": "TMB"
@@ -257,15 +277,16 @@
     {
       "key": "agent_safety",
       "label": "Agent — discipline / sûreté",
-      "model": "kimi-2.7-or",
+      "model": "mistral-l3-or",
       "description": "Sûreté et discipline d'un agent : rester dans le scope, s'arrêter au bon moment, refuser une action destructrice non demandée, détecter un outil qui ment, respecter le format de tool-call. Pas ici si on juge la qualité d'exécution fonctionnelle (→ agent_exec).",
       "bench": {
-        "score": 97.6,
+        "score": 100.0,
         "coverage": 1.0,
         "n_tests": 5,
         "source": "TMB"
       },
       "verified": true
     }
-  ]
+  ],
+  "enabled": true
 }
