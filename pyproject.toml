@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "coeos-se"
-version = "0.3.0"
+version = "0.3.1"
 description = "CoeOS SE (Simple Edition) — a benchmark-composed LLM router exposed as an OpenAI-compatible API. Routes each request to the model proven best on that skill axis."
 readme = "README.md"
 license = { text = "MIT" }

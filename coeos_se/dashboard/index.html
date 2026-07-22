@@ -117,17 +117,6 @@
     <div class="sub small" style="margin-top:8px">Settings ship from the canonical
       GitHub repo — no manual import. Update re-resolves every axis against your
       army (best score, ties broken by cost). Provider keys are untouched.</div>
-    <div class="row" style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border)">
-      <input type="text" id="cfgName" placeholder="config name" style="max-width:220px">
-      <button onclick="saveNamedConfig()">Save current as…</button>
-      <span class="msg" id="cfgSaveMsg"></span>
-    </div>
-    <div class="row">
-      <select id="cfgPick" style="max-width:220px"><option value="">— saved configs —</option></select>
-      <button onclick="loadNamedConfig()">Load</button>
-      <button onclick="deleteNamedConfig()">Delete</button>
-      <span class="msg" id="cfgLoadMsg"></span>
-    </div>
   </div>
 
   <h2>Requests routed</h2>
@@ -250,37 +239,6 @@ async function applyUpdate() {
   if (r.ok) { document.getElementById('updateBanner').classList.remove('on'); loadArmy(); loadHealth(); }
 }
 
-async function loadConfigsList() {
-  const d = await (await api('/admin/coeos/configs')).json();
-  const sel = document.getElementById('cfgPick');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">— saved configs —</option>'
-    + (d.configs || []).map(n => `<option>${esc(n)}</option>`).join('');
-  if ((d.configs || []).includes(cur)) sel.value = cur;
-}
-async function saveNamedConfig() {
-  const name = document.getElementById('cfgName').value.trim();
-  if (!name) return flash('cfgSaveMsg', false, 'name required');
-  const r = await api('/admin/coeos/configs/save', {method: 'POST', body: JSON.stringify({name})});
-  const d = await r.json().catch(() => ({}));
-  flash('cfgSaveMsg', r.ok, r.ok ? ('saved as ' + d.name) : 'save failed');
-  if (r.ok) { document.getElementById('cfgName').value = ''; loadConfigsList(); }
-}
-async function loadNamedConfig() {
-  const name = document.getElementById('cfgPick').value;
-  if (!name) return flash('cfgLoadMsg', false, 'pick a config');
-  const r = await api('/admin/coeos/configs/load', {method: 'POST', body: JSON.stringify({name})});
-  flash('cfgLoadMsg', r.ok, r.ok ? ('loaded ' + name) : 'load failed');
-  if (r.ok) { loadArmy(); loadHealth(); }
-}
-async function deleteNamedConfig() {
-  const name = document.getElementById('cfgPick').value;
-  if (!name) return flash('cfgLoadMsg', false, 'pick a config');
-  const r = await api('/admin/coeos/configs/' + encodeURIComponent(name), {method: 'DELETE'});
-  flash('cfgLoadMsg', r.ok, r.ok ? ('deleted ' + name) : 'delete failed');
-  if (r.ok) loadConfigsList();
-}
-
 async function clearDecisions() {
   const r = await api('/admin/coeos/decisions', {method: 'DELETE'});
   flash('decisionsMsg', r.ok, r.ok ? 'cleared' : 'error');
@@ -298,7 +256,7 @@ async function loadDecisions() {
     : '<tr><td class="muted">No routed requests yet.</td></tr>';
 }
 
-loadHealth(); loadOpenRouter(); loadArmy(); loadDecisions(); loadConfigsList(); checkUpdate(false);
+loadHealth(); loadOpenRouter(); loadArmy(); loadDecisions(); checkUpdate(false);
 </script>
 </body>
 </html>
