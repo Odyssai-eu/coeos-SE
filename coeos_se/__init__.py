@@ -6,4 +6,4 @@ file), and a virtual model id `coeos` that classifies each request and relays
 it to the model proven best on that axis.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

@@ -98,8 +98,6 @@
       <label style="margin:0"><input type="checkbox" id="enabled" onchange="toggleEnabled()"> router enabled</label>
       <span class="muted small" id="armyMeta"></span>
       <span style="flex:1"></span>
-      <button onclick="checkUpdate(true)">Check for updates</button>
-      <span class="msg" id="updateCheckMsg"></span>
     </div>
     <div class="army" id="army"></div>
     <div class="sub small" style="margin-top:12px">The models CoeOS fields for you.
@@ -107,17 +105,18 @@
       under the hood.</div>
   </div>
 
-  <h2>TMB Settings File</h2>
+  <h2>TMB Settings</h2>
   <div class="panel">
-    <label style="margin-top:0">Paste a TMB Score Table (or a settings file) — auto-detected</label>
-    <textarea id="tmbFile" placeholder='{"format": "tmb-score-table/1", …}'></textarea>
-    <div class="row">
-      <button class="primary" onclick="importTmbFile()">Import</button>
-      <span class="sub small">A score table is resolved once per axis against
-        the models below (best score, ties broken by cost) — re-import after
-        changing your army to re-resolve.</span>
+    <div class="row" style="margin-top:0">
+      <span class="sub" id="settingsMeta">…</span>
+      <span style="flex:1"></span>
+      <button onclick="checkUpdate(true)">Check for updates</button>
+      <button class="primary" onclick="applyUpdate()">Update from GitHub</button>
       <span class="msg" id="tmbFileMsg"></span>
     </div>
+    <div class="sub small" style="margin-top:8px">Settings ship from the canonical
+      GitHub repo — no manual import. Update re-resolves every axis against your
+      army (best score, ties broken by cost). Provider keys are untouched.</div>
     <div class="row" style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border)">
       <input type="text" id="cfgName" placeholder="config name" style="max-width:220px">
       <button onclick="saveNamedConfig()">Save current as…</button>
@@ -175,6 +174,9 @@ async function loadHealth() {
   document.getElementById('health').textContent =
     'v' + h.version + ' · ' + h.axes_bound + ' axes · '
     + (h.providers_ready.length ? 'ready' : 'no key');
+  const sm = document.getElementById('settingsMeta');
+  if (sm) sm.textContent = (h.settings || '—') + ' · ' + (h.updated || '—')
+    + ' · ' + h.axes_bound + ' axes';
 }
 
 async function loadOpenRouter() {
@@ -225,7 +227,7 @@ async function toggleEnabled() {
 }
 
 async function checkUpdate(force) {
-  if (force) flash('updateCheckMsg', true, 'checking…');
+  if (force) flash('tmbFileMsg', true, 'checking…');
   const d = await (await api('/admin/settings-update' + (force ? '?check=true' : ''))).json();
   const banner = document.getElementById('updateBanner');
   banner.classList.toggle('on', !!d.available);
@@ -234,29 +236,18 @@ async function checkUpdate(force) {
       'local ' + (d.local_updated || '—') + ' → ' + (d.remote_updated || '—')
       + (d.remote_name ? ' (' + d.remote_name + ')' : '');
   }
-  if (force) flash('updateCheckMsg', !d.error,
+  if (force) flash('tmbFileMsg', !d.error,
     d.error ? d.error : (d.available ? 'update available' : 'up to date'));
 }
 async function applyUpdate() {
   flash('updateMsg', true, 'downloading…');
+  flash('tmbFileMsg', true, 'downloading…');
   const r = await api('/admin/settings-update/apply', {method: 'POST'});
   const d = await r.json();
-  flash('updateMsg', r.ok, r.ok ? ('updated → ' + d.updated) : (d.detail || 'failed'));
+  const msg = r.ok ? ('updated → ' + d.updated) : (d.detail || 'failed');
+  flash('updateMsg', r.ok, msg);
+  flash('tmbFileMsg', r.ok, msg);
   if (r.ok) { document.getElementById('updateBanner').classList.remove('on'); loadArmy(); loadHealth(); }
-}
-
-async function importTmbFile() {
-  const raw = document.getElementById('tmbFile').value.trim();
-  if (!raw) return flash('tmbFileMsg', false, 'paste a file first');
-  let body;
-  try { body = JSON.parse(raw); }
-  catch (e) { return flash('tmbFileMsg', false, 'invalid JSON: ' + e.message); }
-  const r = await api('/admin/coeos', {method: 'PUT', body: JSON.stringify(body)});
-  const d = await r.json().catch(() => ({}));
-  flash('tmbFileMsg', r.ok, r.ok
-    ? ('imported' + (d.axes ? ' — ' + d.axes.length + ' axes' : ''))
-    : ((d.detail && d.detail.message) || 'import failed'));
-  if (r.ok) { loadArmy(); loadHealth(); }
 }
 
 async function loadConfigsList() {
