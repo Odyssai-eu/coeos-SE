@@ -15,9 +15,19 @@ config in one JSON file. Nothing else to deploy.
 Unlike full CoeOS, SE needs **no local engine**: OpenRouter is the fleet.
 The only external requirement is an OpenRouter API key (the user's).
 
-## Install — two equivalent routes
+## Install — three equivalent routes
 
-### Docker (preferred)
+### uvx (fastest — no clone, no venv)
+
+```sh
+uvx coeos-se                          # runs from PyPI; uv resolves Python >= 3.10 itself
+```
+
+Sidesteps the python3.9 pitfall entirely. Config lands in `./coeos-config.json`
+of the current directory (or `COEOS_CONFIG`). Requires `uv`
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`).
+
+### Docker (preferred for servers)
 
 ```sh
 git clone https://github.com/Odyssai-eu/coeos-SE.git && cd coeos-SE

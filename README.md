@@ -27,8 +27,10 @@ OpenRouter
 ## Quickstart
 
 ```bash
+uvx coeos-se            # zero install — runs straight from PyPI (uv picks the right Python)
+# or, from a clone:
 docker compose up -d
-# or: pip install . && coeos-se
+# or: pip install coeos-se && coeos-se
 ```
 
 Open `http://localhost:4600/dashboard`, paste your
