@@ -618,6 +618,16 @@ async def dashboard():
     return FileResponse(str(path), media_type="text/html")
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    # Les navigateurs sondent /favicon.ico a la racine meme quand la page
+    # declare son <link rel="icon"> : on sert le meme PNG plutot qu'un 404.
+    path = importlib.resources.files("coeos_se") / "dashboard" / "images" / "coeos.png"
+    if not path.is_file():
+        raise HTTPException(404)
+    return FileResponse(str(path), media_type="image/png")
+
+
 @app.get("/dashboard/images/{name}")
 async def dashboard_image(name: str):
     # Static assets for the dashboard (logo). Filename-only, no path traversal.
