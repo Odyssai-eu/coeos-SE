@@ -26,12 +26,23 @@ OpenRouter
 
 ## Quickstart
 
+**Apple Silicon Mac — no terminal.** Download
+[**CoeOS SE.dmg**](https://github.com/Odyssai-eu/coeos-SE/releases/latest),
+drag it to Applications, launch it. Signed and notarized by Apple, so it opens
+without a Gatekeeper warning. It lives in the menu bar and opens the dashboard
+for you. Nothing else is needed — no Python, no uv.
+
+**Everywhere else — Intel Mac, Windows, Linux:**
+
 ```bash
 uvx coeos-se            # zero install — runs straight from PyPI (uv picks the right Python)
 # or, from a clone:
 docker compose up -d
 # or: pip install coeos-se && coeos-se
 ```
+
+The DMG is Apple Silicon only. On an Intel Mac, use the PyPI route above — it
+is the same server, same routing, same dashboard, just started from a terminal.
 
 Open `http://localhost:4600/dashboard`, paste your
 [OpenRouter](https://openrouter.ai/settings/keys) key. That's the whole setup —

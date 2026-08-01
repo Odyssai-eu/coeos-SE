@@ -15,7 +15,15 @@ config in one JSON file. Nothing else to deploy.
 Unlike full CoeOS, SE needs **no local engine**: OpenRouter is the fleet.
 The only external requirement is an OpenRouter API key (the user's).
 
-## Install — three equivalent routes
+## Install — four routes
+
+### DMG (Apple Silicon Mac only — for a human, not for you)
+
+[`CoeOS SE.dmg`](https://github.com/Odyssai-eu/coeos-SE/releases/latest) — a
+signed and notarized menu-bar app with the server frozen inside. Config lands in
+`~/Library/Application Support/CoeOS SE/coeos-config.json`. **arm64 only**: on an
+Intel Mac, on Windows and on Linux, use uvx or Docker below. If you are an agent
+installing this headlessly, do not pick this route — take uvx.
 
 ### uvx (fastest — no clone, no venv)
 
