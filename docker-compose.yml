@@ -4,6 +4,10 @@ services:
     container_name: coeos-se
     ports:
       - "4600:4600"
+      # Plan de controle : un client agent (CodeOS) force ce port sur l'URL du
+      # moteur pour lire l'affectation des roles. SE y repond aussi afin d'etre
+      # indiscernable de l'edition complete.
+      - "4800:4800"
     environment:
       # Paste the key in the dashboard (stored in ./data/coeos-config.json) or
       # provide it here / via a .env file next to this compose file.

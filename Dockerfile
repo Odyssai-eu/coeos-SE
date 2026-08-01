@@ -9,6 +9,6 @@ RUN pip install --no-cache-dir .
 ENV COEOS_CONFIG=/data/coeos-config.json \
     COEOS_PORT=4600
 VOLUME /data
-EXPOSE 4600
+EXPOSE 4600 4800
 
 CMD ["coeos-se"]
