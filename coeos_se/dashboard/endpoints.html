@@ -14,7 +14,8 @@
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   .wrap { max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; }
-  header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  header { display: flex; align-items: center; justify-content: space-between;
+           gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
   h1 { font-size: 20px; margin: 0; }
   h1 .se { color: var(--accent); }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
@@ -30,7 +31,12 @@
   .copy:hover { border-color: var(--accent); }
   .copy.done { color: var(--ok); border-color: var(--ok); }
   a { color: var(--accent); text-decoration: none; }
-  .back { font-size: 13px; }
+  /* Le lien retour existait mais se noyait sous le titre, sans repere visuel :
+     on ne trouvait pas comment revenir (Sophie, 2026-08-01). Le header passe
+     en space-between et le lien prend un style bouton, a droite du titre. */
+  .back { font-size: 13px; border: 1px solid var(--border); border-radius: 8px;
+          padding: 6px 13px; white-space: nowrap; }
+  .back:hover { border-color: var(--accent); }
   .base { font-family: var(--mono); color: var(--ok); }
   .badge { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 11.5px;
            border: 1px solid var(--border); color: var(--muted); margin-left: 8px;

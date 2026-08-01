@@ -236,6 +236,7 @@ async def v1_models():
     data: list[dict] = []
     axes = bound_axes(c)
     if c.get("enabled") and axes:
+        ax_map = {ax["key"]: ax["model"] for ax in axes}
         data.append({
             "id": COEOS_DISPLAY_ID, "object": "model", "created": now,
             "owned_by": "coeos-se", "root": COEOS_DISPLAY_ID,
@@ -244,7 +245,18 @@ async def v1_models():
                 "settings": c.get("name"),
                 "updated": c.get("updated"),
                 "decider": (decider_spec(c) or {}).get("name"),
-                "axes": {ax["key"]: ax["model"] for ax in axes},
+                "axes": ax_map,
+            },
+            # Contrat COMMUN avec OdyssAI-X (2026-08-01). Les consommateurs
+            # (console CoeOS, CodeOS) identifient le routeur par METADONNEE —
+            # `x_odyssai.kind == "router"` — jamais par le nom du modele. Sans
+            # ce bloc, SE publiait bien l'id `CoeOS` mais restait invisible a
+            # tout ce qui pilote un moteur : "no router published". SE et
+            # OdyssAI-X ne tournent jamais ensemble, ils doivent donc etre
+            # indiscernables pour un client.
+            "x_odyssai": {
+                "kind": "router", "ready": True,
+                "axes": ax_map,
             },
         })
     for logical, entry in sorted(registry_of(c).items()):
@@ -252,12 +264,23 @@ async def v1_models():
         resolved = resolve_logical(cfg, logical)
         data.append({
             "id": logical, "object": "model", "created": now,
-            "owned_by": "coeos-se",
+            # Un modele du registry est servi par OpenRouter : meme forme que
+            # les alias cloud d'OdyssAI-X (`odyssai-cloud-<provider>`), pour
+            # que le tri local/cloud et la preference de passerelle marchent
+            # a l'identique cote console.
+            "owned_by": "odyssai-cloud-openrouter",
             "x_coeos": {
                 "router": False,
                 "name": entry.get("name") or logical,
                 "or": entry.get("or") or None,
                 "resolvable": resolved is not None,
+            },
+            "x_odyssai": {
+                "kind": "cloud", "ready": resolved is not None,
+                "loaded": resolved is not None, "warm": True,
+                # `upstream` = l'id canonique du provider : c'est la cle de
+                # jointure forte cote console (etage 0 de join()).
+                "upstream": entry.get("or") or logical,
             },
         })
     return {"object": "list", "data": data}
@@ -399,6 +422,66 @@ async def admin_coeos_update(request: Request):
                 c[field] = bool(val) if field == "enabled" else val
         cfg["coeos"] = c
     return coeos_cfg(load_config())
+
+
+# ── Agents : affectation LECTURE SEULE pour CodeOS ──────────────────────────
+# SE n'a pas de surface de personnalisation, par choix : les modeles sont ceux
+# des settings TMB officiels qu'il embarque. On expose donc /api/state avec la
+# MEME forme que la console CoeOS (le plan de controle de l'edition complete),
+# limitee aux champs qu'un client agent lit. Aucune ecriture.
+def _roles_manifest() -> dict:
+    try:
+        path = importlib.resources.files("coeos_se") / "settings" / "coeos-roles.json"
+        return (json.loads(path.read_text()) or {}).get("roles") or {}
+    except Exception as e:
+        sys.stderr.write(f"[coeos-se] roles manifest unreadable: {e}\n")
+        return {}
+
+
+def _agent_assignment(c: dict) -> dict:
+    """role -> {model, axis, axes}. Par defaut un role appelle le ROUTEUR avec
+    son hint d'axe : le routage par critere reste la regle, et c'est ce qui
+    rend SE et l'edition complete indiscernables pour un agent.
+
+    Exception, les groupes `panel` : router par axe ramenerait direct et
+    alternative sur le modele du meme critere. Un membre de panel recoit donc
+    un modele CONCRET, distinct de ses pairs — pris dans les bindings des
+    settings officiels, en parcourant ses propres axes. Rien a regler : la
+    diversite sort de la donnee deja presente."""
+    binding = {a["key"]: a["model"] for a in bound_axes(c)}
+    roles = _roles_manifest()
+    claimed: dict[str, set] = {}
+    out = {}
+    for role, spec in roles.items():
+        axes = spec.get("axes") or []
+        first = axes[0] if axes else None
+        group = spec.get("panel")
+        model = COEOS_DISPLAY_ID
+        if group:
+            taken = claimed.setdefault(group, set())
+            pick = next((binding[a] for a in axes
+                         if binding.get(a) and binding[a] not in taken), None)
+            # groupe plus large que le vivier de ses axes : on elargit a tous
+            # les bindings plutot que de rendre deux membres identiques
+            pick = pick or next((m for m in binding.values() if m not in taken), None)
+            if pick:
+                taken.add(pick)
+                model = pick
+        out[role] = {"model": model, "axis": first, "axes": axes,
+                     "panel": group, "overridden": False}
+    return out
+
+
+@app.get("/api/state")
+async def api_state():
+    """Etat lisible par un client agent (CodeOS). Lecture seule : SE ne
+    personnalise pas, il sert les settings officiels."""
+    c = coeos_cfg(load_config())
+    return {"product": "coeos-se", "readonly": True,
+            "router": COEOS_DISPLAY_ID if (c.get("enabled") and bound_axes(c)) else None,
+            "provider": "coeos", "settings": c.get("name"),
+            "updated": c.get("updated"),
+            "assignment": _agent_assignment(c)}
 
 
 @app.get("/admin/coeos/decisions")

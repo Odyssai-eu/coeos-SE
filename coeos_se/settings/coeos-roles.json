@@ -1,0 +1,96 @@
+{
+  "format": "coeos-roles/1",
+  "note": "CodeOS agent roles served READ-ONLY by CoeOS SE. SE has no customisation surface on purpose: the models come from the official TMB settings it ships. Each role declares the skill axes it routes on; `panel` marks a diversity group whose members must end up on DIFFERENT models, or a contradiction between them is not a contradiction.",
+  "roles": {
+    "codeos-reviewer": {
+      "label": "CodeOS Reviewer",
+      "axes": [
+        "debug",
+        "plan_judgment"
+      ],
+      "speed_weight": 0.0,
+      "stage": "verify",
+      "writes": false,
+      "note": "CodeOS agent (opencode desktop fork): adversarial review of a diff. Consumed by buildCoeosConfig, not by orchestrator.py — same routing brain (score-table+pairs), interactive harness distinct from the headless superagent."
+    },
+    "codeos-debugger": {
+      "label": "CodeOS Debugger",
+      "axes": [
+        "debug",
+        "reasoning"
+      ],
+      "speed_weight": 0.0,
+      "stage": "verify",
+      "writes": false
+    },
+    "codeos-explore": {
+      "label": "CodeOS Explore",
+      "axes": [
+        "code_general",
+        "fast_tools"
+      ],
+      "speed_weight": 0.4,
+      "stage": "recon",
+      "writes": false,
+      "note": "Read-only by construction (no write tools on the CodeOS side); weights speed like the superagent executor (high call frequency)."
+    },
+    "codeos-panel-direct": {
+      "label": "CodeOS Panel — Direct",
+      "axes": [
+        "plan_judgment",
+        "reasoning"
+      ],
+      "speed_weight": 0.2,
+      "stage": "decision",
+      "writes": false,
+      "panel": "codeos-panel",
+      "note": "Panel member: takes the position head-on. The three panel roles are a DIVERSITY group — `panel` forces distinct models across them, because a contradiction between two instances of the same model is not a contradiction. They pin a concrete model instead of the router (routing by axis would collapse them onto one model)."
+    },
+    "codeos-panel-alternative": {
+      "label": "CodeOS Panel — Alternative",
+      "axes": [
+        "plan_judgment",
+        "reasoning"
+      ],
+      "speed_weight": 0.2,
+      "stage": "decision",
+      "writes": false,
+      "panel": "codeos-panel",
+      "note": "Panel member: argues the alternative. Must be a DIFFERENT model family from Direct — see the `panel` group."
+    },
+    "codeos-panel-sceptique": {
+      "label": "CodeOS Panel — Skeptic",
+      "axes": [
+        "debug",
+        "plan_judgment"
+      ],
+      "speed_weight": 0.0,
+      "stage": "decision",
+      "writes": false,
+      "panel": "codeos-panel",
+      "note": "Panel member: red-teams both. Third distinct model of the `panel` group."
+    },
+    "codeos-orchestrator": {
+      "label": "CodeOS Orchestrator",
+      "axes": [
+        "plan_judgment",
+        "reasoning"
+      ],
+      "speed_weight": 0.1,
+      "stage": "decision",
+      "writes": false,
+      "note": "CodeOS CoeOS Mode (PLAN.md v2 WU3): the primary agent that plans work into the Task File and dispatches role-scoped subagents. Never edits files itself. Consumed by buildCoeosConfig, not by orchestrator.py."
+    },
+    "codeos-executor": {
+      "label": "CodeOS Executor",
+      "axes": [
+        "code_general",
+        "instruction_following"
+      ],
+      "speed_weight": 0.3,
+      "stage": "execute",
+      "writes": true,
+      "note": "CodeOS CoeOS Mode: the write-enabled subagent that implements exactly one Task File task. Reachable only through CoeOS Mode dispatch (runtime guard in TaskTool)."
+    }
+  }
+}
