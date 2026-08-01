@@ -52,6 +52,11 @@ VIRTUAL_ENV="$VENV" uv pip install --quiet "$ROOT" pyinstaller
 [ -x "$BUILDDIR/dist/coeos-se/coeos-se" ] || { echo "x le gel a echoue"; exit 1; }
 cp -R "$BUILDDIR/dist/coeos-se" "$APP/Contents/Resources/server"
 
+# pip ecrit direct_url.json quand il installe depuis un chemin local : il y
+# grave le repertoire de build de la machine, qui partirait tel quel dans le
+# DMG de chaque utilisateur. Metadonnee de build, aucune valeur a l'execution.
+find "$APP/Contents/Resources/server" -name 'direct_url.json' -delete 2>/dev/null || true
+
 # ── 2. Compiler la barre de menus ──────────────────────────────────────────
 echo "→ compilation de la barre de menus…"
 SWIFT_FLAGS="-O"
