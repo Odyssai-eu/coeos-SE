@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "coeos-se"
-version = "0.3.2"
+version = "0.3.3"
 description = "CoeOS SE (Simple Edition) — a benchmark-composed LLM router exposed as an OpenAI-compatible API. Routes each request to the model proven best on that skill axis."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [{ name = "OdyssAI" }]
+classifiers = ["Development Status :: 7 - Inactive"]
 keywords = ["llm", "router", "openai", "openrouter", "proxy", "benchmark"]
 dependencies = [
     "fastapi>=0.110",

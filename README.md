@@ -1,5 +1,12 @@
 # CoeOS SE
 
+> **⚠ Discontinued — final release.** CoeOS SE is no longer developed or
+> distributed as a standalone router. This is the last release: existing
+> installs keep working, but the bundled TMB Settings will **no longer be
+> refreshed** — the routing table is a dated snapshot that ages as models
+> evolve. The router lives on as the core of the **CoeOS** solution
+> ([odyssai.eu](https://odyssai.eu)). This repository is archived.
+
 **One OpenAI-compatible endpoint. Every request routed to the model proven best
 at that skill.**
 
